@@ -4,4 +4,12 @@ import { defineConfig } from "wxt";
 export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-svelte"],
+  manifest: {
+    host_permissions: ["*://api.tailscale.com/api/v2/*"],
+    permissions: ["storage"],
+    action: {
+      default_title: "Open Tailscale Home",
+      // No default_popup - clicking the button will be handled by the background script
+    },
+  },
 });
