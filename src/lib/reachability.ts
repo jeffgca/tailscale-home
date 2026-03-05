@@ -16,20 +16,20 @@ function hostForUrl(hostOrIp: string): string {
 function getProbeTargets(device: Device): string[] {
   const targets: string[] = [];
   const fqdn = device.name?.trim();
-  const hostname = device.hostname?.trim();
+  // const hostname = device.hostname?.trim();
+
+  console.log("fqdn", fqdn, "addresses", device.addresses);
 
   if (fqdn) {
     targets.push(`https://${fqdn}`);
     targets.push(`http://${fqdn}`);
   }
 
-  if (hostname && hostname !== fqdn) {
-    targets.push(`https://${hostname}`);
-    targets.push(`http://${hostname}`);
-  }
-
   for (const address of device.addresses ?? []) {
     const host = hostForUrl(address);
+
+    console.log("hostForUrl", address, host);
+
     targets.push(`http://${host}`);
     targets.push(`https://${host}`);
   }
@@ -41,15 +41,20 @@ async function probeUrl(url: string, timeoutMs = 2500): Promise<boolean> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
+  console.log(url, "probe started");
+
   try {
-    await fetch(url, {
+    let result = await fetch(url, {
       method: "HEAD",
       mode: "no-cors",
       cache: "no-store",
       signal: controller.signal,
     });
+
+    console.log("prope response from", url, result);
     return true;
-  } catch {
+  } catch (Err) {
+    console.warn("probe error for", url, Err);
     return false;
   } finally {
     clearTimeout(timeout);
