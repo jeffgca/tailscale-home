@@ -1,15 +1,49 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { tailscaleApiKey } from "../../lib/storage";
+  import { tailscaleApiKey, themePreference } from "../../lib/storage";
+  import DevicesList from "../../components/DevicesList.svelte";
 
   let apiKeyConfigured = $state(false);
   let loading = $state(true);
+  let isDarkMode = $state(false);
+  let currentTheme = $state<"light" | "dark" | "system">("system");
 
   onMount(async () => {
+    // Load preferences
     const key = await tailscaleApiKey.getValue();
     apiKeyConfigured = !!key;
+    currentTheme = await themePreference.getValue();
+
+    // Set initial theme
+    updateTheme();
+
+    // Listen for system theme changes
+    if (window.matchMedia) {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", updateTheme);
+    }
+
     loading = false;
   });
+
+  function updateTheme() {
+    const theme = currentTheme === "system" ? getSystemTheme() : currentTheme;
+    isDarkMode = theme === "dark";
+    document.documentElement.setAttribute("data-theme", theme);
+  }
+
+  function getSystemTheme(): "light" | "dark" {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  async function toggleTheme() {
+    const themes: Array<"light" | "dark" | "system"> = ["light", "dark", "system"];
+    const currentIndex = themes.indexOf(currentTheme);
+    const nextTheme = themes[(currentIndex + 1) % themes.length];
+
+    currentTheme = nextTheme;
+    await themePreference.setValue(nextTheme);
+    updateTheme();
+  }
 
   function openSettings() {
     browser.runtime.openOptionsPage();
@@ -24,13 +58,12 @@
   {:else if !apiKeyConfigured}
     <div class="container welcome-state">
       <header>
-        <h1>🔑 Tailscale Home</h1>
-        <p class="subtitle">Tailscale extension for browser</p>
+        <h1>Tailscale Home</h1>
+        <p class="subtitle">Browser extension</p>
       </header>
 
       <div class="welcome-content">
-        <div class="icon">🚀</div>
-        <h2>Welcome to Tailscale Home</h2>
+        <h2>Configuration Required</h2>
         <p>Get started by configuring your Tailscale API key.</p>
 
         <button class="btn btn-primary" onclick={openSettings}> Configure API Key </button>
@@ -46,30 +79,53 @@
       </footer>
     </div>
   {:else}
-    <div class="container main-state">
-      <header>
-        <h1>🏠 Tailscale Home</h1>
+    <div class="main-container">
+      <header class="main-header">
+        <div class="header-content">
+          <h1>Tailscale Home</h1>
+          <div class="header-actions">
+            <button class="theme-btn" onclick={toggleTheme} title={`Switch theme (current: ${currentTheme})`}>
+              {isDarkMode ? "Light" : "Dark"}
+            </button>
+            <button class="settings-btn" onclick={openSettings} title="Settings"> Settings </button>
+          </div>
+        </div>
       </header>
 
-      <div class="content">
-        <p>✅ API Key configured</p>
-        <p>More features coming soon...</p>
-      </div>
-
-      <footer>
-        <button class="btn btn-secondary" onclick={openSettings}> Settings </button>
-      </footer>
+      <DevicesList />
     </div>
   {/if}
 </main>
 
 <style>
+  :global([data-theme="light"]) {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --text-primary: #000000;
+    --text-secondary: #666666;
+    --border-color: #dddddd;
+    --accent-color: #333333;
+  }
+
+  :global([data-theme="dark"]) {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --border-color: #444444;
+    --accent-color: #e0e0e0;
+  }
+
   main {
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition:
+      background-color 0.2s,
+      color 0.2s;
   }
 
   .container {
@@ -77,7 +133,7 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 2rem;
+    padding: 1.5rem;
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
@@ -85,96 +141,81 @@
 
   header {
     text-align: center;
-    color: white;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
   }
 
   h1 {
-    font-size: 2.5rem;
-    margin: 0 0 0.5rem 0;
+    font-size: 1.8rem;
+    margin: 0 0 0.25rem 0;
   }
 
   .subtitle {
-    font-size: 1.1rem;
+    font-size: 0.9rem;
     margin: 0;
-    opacity: 0.9;
+    opacity: 0.7;
   }
 
   .welcome-content {
-    background: white;
-    border-radius: 12px;
-    padding: 3rem 2rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 2rem;
     text-align: center;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  }
-
-  .icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
   }
 
   .welcome-content h2 {
-    font-size: 1.8rem;
-    margin: 1rem 0;
-    color: #333;
+    font-size: 1.4rem;
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
   }
 
   .welcome-content p {
-    color: #666;
-    font-size: 1.1rem;
-    margin: 1rem 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin: 0.75rem 0;
   }
 
   .btn {
-    padding: 0.75rem 2rem;
+    padding: 0.6rem 1.5rem;
     border: none;
-    border-radius: 6px;
-    font-size: 1rem;
+    border-radius: 4px;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.2s;
     display: inline-block;
-    margin: 1rem 0;
+    margin: 0.75rem 0;
   }
 
   .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--accent-color);
+    color: var(--bg-primary);
   }
 
   .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-  }
-
-  .btn-secondary {
-    background: #f0f0f0;
-    color: #333;
-  }
-
-  .btn-secondary:hover {
-    background: #e0e0e0;
+    opacity: 0.8;
   }
 
   .secondary-text {
-    font-size: 0.95rem;
-    color: #999;
-    margin-top: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 1rem;
   }
 
   footer {
     text-align: center;
-    color: white;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
   }
 
   footer a {
-    color: #fff;
-    text-decoration: underline;
+    color: var(--accent-color);
+    text-decoration: none;
+    border-bottom: 1px solid var(--accent-color);
   }
 
   footer a:hover {
-    opacity: 0.8;
+    opacity: 0.7;
   }
 
   .loading-state {
@@ -183,39 +224,77 @@
   }
 
   .loading-state p {
-    color: white;
-    font-size: 1.2rem;
+    font-size: 1rem;
   }
 
-  .main-state {
-    color: white;
+  .main-container {
+    width: 90%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    margin: 0 0 0 2em;
   }
 
-  .content {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 2rem;
-    flex: 1;
-    color: white;
+  .main-header {
+    padding: 1rem 1.5rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
   }
 
-  .content p {
-    font-size: 1.1rem;
-    margin: 0.5rem 0;
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+    gap: 1rem;
+  }
+
+  .header-content h1 {
+    font-size: 1.5rem;
+    margin: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .theme-btn,
+  .settings-btn {
+    padding: 0.4rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .theme-btn:hover,
+  .settings-btn:hover {
+    background: var(--border-color);
   }
 
   @media (max-width: 768px) {
+    .container {
+      padding: 1rem;
+    }
+
     h1 {
-      font-size: 1.8rem;
+      font-size: 1.4rem;
+    }
+
+    .header-content {
+      flex-direction: column;
+      align-items: flex-start;
     }
 
     .welcome-content {
-      padding: 2rem 1.5rem;
-    }
-
-    .btn {
-      padding: 0.6rem 1.5rem;
-      font-size: 0.95rem;
+      padding: 1.5rem;
     }
   }
 </style>
