@@ -88,6 +88,7 @@ async function checkDeviceReachability(device: Device): Promise<DeviceReachabili
 
 export async function runAndStoreReachabilityScan(): Promise<DeviceReachabilityMap> {
   const client = await createTailscaleClient();
+
   if (!client) {
     await deviceReachability.setValue({});
     await deviceReachabilityLastScan.setValue(new Date().toISOString());
@@ -103,5 +104,6 @@ export async function runAndStoreReachabilityScan(): Promise<DeviceReachabilityM
 
   await deviceReachability.setValue(resultMap);
   await deviceReachabilityLastScan.setValue(new Date().toISOString());
+
   return resultMap;
 }

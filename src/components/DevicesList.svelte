@@ -4,6 +4,7 @@
   import type { Device, ConnectivityCheckResult } from "../lib/api";
   import { deviceReachability, deviceReachabilityLastScan, type DeviceReachabilityMap } from "../lib/storage";
   import { navigate } from "../entrypoints/tab/router";
+  import { getCachedLocalIPs } from "../lib/localIp";
 
   let devices = $state<Device[]>([]);
   let loading = $state(true);
@@ -12,6 +13,8 @@
   let refreshing = $state(false);
   let reachability = $state<DeviceReachabilityMap>({});
   let lastReachabilityScan = $state<string | null>(null);
+  let localIPs = $state<string[]>([]);
+  let currentDeviceId = $state<string | null>(null);
 
   async function loadDevices() {
     loading = true;
@@ -39,6 +42,11 @@
 
       const result = await client.listDevices("all");
       devices = result.devices || [];
+
+      // Identify current device if we already have local IPs
+      if (localIPs.length > 0) {
+        currentDeviceId = findCurrentDevice(devices, localIPs);
+      }
 
       // Auto-redirect to services if no devices but services exist
       if (devices.length === 0) {
@@ -107,6 +115,7 @@
   onMount(() => {
     void loadDevices();
     void loadReachability();
+    void loadLocalIPs();
 
     const intervalId = window.setInterval(() => {
       void loadReachability();
@@ -116,6 +125,16 @@
       window.clearInterval(intervalId);
     };
   });
+
+  async function loadLocalIPs() {
+    try {
+      localIPs = await getCachedLocalIPs();
+      // Identify the current device after loading local IPs
+      currentDeviceId = findCurrentDevice(devices, localIPs);
+    } catch (error) {
+      console.error("Failed to load local IPs:", error);
+    }
+  }
 
   function getStatusColor(connected: boolean, authorized: boolean): string {
     if (!authorized) return "var(--status-pending)";
@@ -141,9 +160,53 @@
       year: "numeric",
     });
   }
+
+  function findCurrentDevice(devicesArr: Device[], localIpList: string[]): string | null {
+    if (localIpList.length === 0) return null;
+
+    for (const device of devicesArr) {
+      if (!device.addresses) continue;
+      // Check if any of this device's addresses match any of our local IPs
+      for (const deviceIp of device.addresses) {
+        if (localIpList.includes(deviceIp)) {
+          return device.id;
+        }
+      }
+    }
+    return null;
+  }
+
+  function isCurrentDevice(deviceId: string): boolean {
+    return deviceId === currentDeviceId;
+  }
+
+  function getSortedDevices(devicesArr: Device[], currDeviceId: string | null): Device[] {
+    if (!currDeviceId) return devicesArr;
+
+    const current = devicesArr.find((d) => d.id === currDeviceId);
+    const others = devicesArr.filter((d) => d.id !== currDeviceId);
+
+    if (current) {
+      return [current, ...others];
+    }
+    return devicesArr;
+  }
 </script>
 
 <div class="devices-container">
+  <div class="local-ip-section">
+    <div class="local-ip-label">This Device IP</div>
+    <div class="local-ip-addresses">
+      {#if localIPs.length > 0}
+        {#each localIPs as ip}
+          <span class="ip-badge">{ip}</span>
+        {/each}
+      {:else}
+        <span class="ip-badge ip-empty">Not available</span>
+      {/if}
+    </div>
+  </div>
+
   <div class="devices-header">
     <div class="devices-title-group">
       <h2>Devices ({devices.length})</h2>
@@ -179,10 +242,13 @@
     </div>
   {:else}
     <div class="devices-list">
-      {#each devices as device (device.id)}
-        <div class="device-card">
+      {#each getSortedDevices(devices, currentDeviceId) as device (device.id)}
+        <div class="device-card" class:current-device={isCurrentDevice(device.id)}>
           <div class="device-header">
             <div class="device-name-section">
+              {#if isCurrentDevice(device.id)}
+                <span class="current-device-badge">This Device</span>
+              {/if}
               <h3 class="device-name">{device.hostname}</h3>
               <p class="device-fqdn">{device.name}</p>
             </div>
@@ -266,6 +332,50 @@
     padding: 1rem;
     overflow-y: auto;
     flex: 1;
+  }
+
+  .local-ip-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .local-ip-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+  }
+
+  .local-ip-addresses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .ip-badge {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    border: 1px solid var(--border-color);
+    user-select: all;
+  }
+
+  .ip-badge:hover {
+    cursor: pointer;
+    opacity: 0.8;
+  }
+
+  .ip-empty {
+    color: var(--text-secondary);
+    font-style: italic;
   }
 
   .devices-header {
@@ -389,6 +499,26 @@
     border-color: var(--text-secondary);
   }
 
+  .device-card.current-device {
+    border: 2px solid var(--status-connected);
+    background: var(--bg-primary);
+    box-shadow: inset 0 0 8px rgba(0, 128, 0, 0.08);
+  }
+
+  .current-device-badge {
+    display: inline-block;
+    background: var(--status-connected);
+    color: white;
+    padding: 0.25rem 0.6rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+    margin-right: 0.5rem;
+  }
+
   .device-header {
     display: flex;
     justify-content: space-between;
@@ -402,6 +532,9 @@
   .device-name-section {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
   }
 
   .device-name {

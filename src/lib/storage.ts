@@ -46,3 +46,17 @@ export const deviceReachability = storage.defineItem<DeviceReachabilityMap>("loc
 export const deviceReachabilityLastScan = storage.defineItem<string | null>("local:deviceReachabilityLastScan", {
   defaultValue: null,
 });
+
+/**
+ * Local IP addresses discovered on this computer
+ */
+export const localIPs = storage.defineItem<string[]>("local:localIPs", {
+  defaultValue: [],
+});
+
+/**
+ * Timestamp of when local IPs were last discovered
+ */
+export const localIPsLastDiscovered = storage.defineItem<string | null>("local:localIPsLastDiscovered", {
+  defaultValue: null,
+});
