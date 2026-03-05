@@ -15,3 +15,9 @@ A browser extension for Tailscale / Tailnet users that authenticates you gives y
 - [x] a browser action button that opens the main extension page
 - [x] the main extension page that displays a list of tailnet devices from the tailscale api, including the name, ip address and whether the device is currently online
 - [x] a background timer that regularly checks to see if the tailscale network is available
+
+## Backlog
+
+- [ ] how do we know which tailnet host we're on, if we are on one?
+- [ ] would this all be much easier if we had a bun executable that implemented native messaging and had raw sockets? well yes but is bundling an executable practical? Electrobun companion app?
+- [ ] is there a local api / interface exposed by the tailscale client we can hijack, er, take advantage of?
