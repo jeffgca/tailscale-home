@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Router } from "sv-router";
   import { tailscaleApiKey, themePreference } from "../../lib/storage";
-  import DevicesList from "../../components/DevicesList.svelte";
+  import { isActive, p } from "./router";
+  import "./router";
 
   let apiKeyConfigured = $state(false);
   let loading = $state(true);
@@ -87,12 +89,17 @@
             <button class="theme-btn" onclick={toggleTheme} title={`Switch theme (current: ${currentTheme})`}>
               {isDarkMode ? "Light" : "Dark"}
             </button>
-            <button class="settings-btn" onclick={openSettings} title="Settings"> Settings </button>
+            <button class="settings-btn" onclick={openSettings} title="Settings">Settings</button>
           </div>
         </div>
       </header>
 
-      <DevicesList />
+      <nav class="main-nav">
+        <a href={p("/tab.html")} class:active={isActive("/tab.html")}>Devices</a>
+        <a href={p("/tab.html/services")} class:active={isActive("/tab.html/services")}>Services</a>
+      </nav>
+
+      <Router />
     </div>
   {/if}
 </main>
@@ -228,17 +235,38 @@
   }
 
   .main-container {
-    width: 90%;
+    width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
-    margin: 0 0 0 2em;
   }
 
   .main-header {
     padding: 1rem 1.5rem;
     color: var(--text-primary);
     border-bottom: 1px solid var(--border-color);
+  }
+
+  .main-nav {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem 0;
+  }
+
+  .main-nav a {
+    display: inline-block;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .main-nav a.active {
+    color: var(--text-primary);
+    border-color: var(--text-primary);
   }
 
   .header-content {

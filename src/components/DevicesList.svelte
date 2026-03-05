@@ -3,6 +3,7 @@
   import { createTailscaleClient, checkBrowserConnectivity, ConnectivityStatus } from "../lib/api";
   import type { Device, ConnectivityCheckResult } from "../lib/api";
   import { deviceReachability, deviceReachabilityLastScan, type DeviceReachabilityMap } from "../lib/storage";
+  import { navigate } from "../entrypoints/tab/router";
 
   let devices = $state<Device[]>([]);
   let loading = $state(true);
@@ -38,6 +39,20 @@
 
       const result = await client.listDevices("all");
       devices = result.devices || [];
+
+      // Auto-redirect to services if no devices but services exist
+      if (devices.length === 0) {
+        try {
+          const servicesResult = await client.listServices();
+          if (servicesResult.vipServices && servicesResult.vipServices.length > 0) {
+            navigate("/tab.html/services");
+            return;
+          }
+        } catch (servicesErr) {
+          // Silently fail the redirect check - stay on devices view
+          console.debug("Could not check services for auto-redirect:", servicesErr);
+        }
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : "Failed to load devices";
       console.error("Error loading devices:", err);

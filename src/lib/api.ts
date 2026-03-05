@@ -71,6 +71,17 @@ export interface Device {
 }
 
 /**
+ * Tailscale Service type
+ */
+export interface Service {
+  name: string;
+  addrs: string[];
+  comment?: string;
+  ports: string[];
+  tags?: string[];
+}
+
+/**
  * Validates that an API key has the correct format
  */
 export function isValidApiKeyFormat(key: string): boolean {
@@ -117,6 +128,13 @@ export class TailscaleAPI {
    */
   async listDevices(fields: "all" | "default" = "default") {
     return this.request<{ devices: Device[] }>(`/tailnet/${this.tailnet}/devices?fields=${fields}`);
+  }
+
+  /**
+   * List all services in the tailnet
+   */
+  async listServices() {
+    return this.request<{ vipServices: Service[] }>(`/tailnet/${this.tailnet}/services`);
   }
 
   /**
