@@ -83,12 +83,39 @@
     errorMessage = "";
     connectionTestResult = "none";
   }
+
+  async function openMainPage() {
+    const tabUrl = browser.runtime.getURL("/tab.html");
+
+    // Query all tabs to find if one with our page is already open
+    const tabs = await browser.tabs.query({});
+    const existingTab = tabs.find((tab) => tab.url === tabUrl);
+
+    if (existingTab && existingTab.id) {
+      // Tab already open - switch to it
+      await browser.tabs.update(existingTab.id, { active: true });
+      // Also bring the window to focus if the tab is in a different window
+      if (existingTab.windowId) {
+        await browser.windows.update(existingTab.windowId, { focused: true });
+      }
+    } else {
+      // Tab not open - create a new one
+      await browser.tabs.create({
+        url: tabUrl,
+      });
+    }
+  }
 </script>
 
 <main>
   <header>
-    <h1>⚙️ Tailscale Home Settings</h1>
-    <p class="subtitle">Configure your Tailscale API credentials</p>
+    <div class="header-content">
+      <div class="header-text">
+        <h1>⚙️ Tailscale Home Settings</h1>
+        <p class="subtitle">Configure your Tailscale API credentials</p>
+      </div>
+      <button type="button" class="btn-link-main" onclick={openMainPage}> Open Main Page → </button>
+    </div>
   </header>
 
   <div class="settings-form">
@@ -166,6 +193,34 @@
     margin-bottom: 2rem;
     border-bottom: 2px solid #eee;
     padding-bottom: 1rem;
+  }
+
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .header-text {
+    flex: 1;
+  }
+
+  .btn-link-main {
+    padding: 0.6rem 1.2rem;
+    background: #0066cc;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+
+  .btn-link-main:hover {
+    background: #0052a3;
   }
 
   h1 {

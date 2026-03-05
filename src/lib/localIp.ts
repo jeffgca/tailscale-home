@@ -154,9 +154,13 @@ export async function requestLocalIPDiscoveryFromPage(): Promise<string[]> {
       return response.ips || [];
     }
   } catch (error) {
-    console.warn("Could not request local IP discovery from any open page:", error);
+    // Expected error when no extension pages are open - don't log as warning
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (!errorMessage.includes("Receiving end does not exist")) {
+      console.warn("Could not request local IP discovery from any open page:", error);
+    }
   }
 
-  // Return cached IPs if message failed
+  // Return cached IPs if message failed (or if no pages are listening)
   return getCachedLocalIPs();
 }

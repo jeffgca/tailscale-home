@@ -1,39 +1,86 @@
-import { REACHABILITY_ALARM_NAME, REACHABILITY_SCAN_PERIOD_MINUTES, runAndStoreReachabilityScan } from "../lib/reachability";
+import { runAndStoreReachabilityScan, isCurrentDeviceIPAvailable } from "../lib/reachability";
+import { getCachedLocalIPs, requestLocalIPDiscoveryFromPage } from "../lib/localIp";
+
+const LOCAL_IP_CHECK_INTERVAL_MS = 30000; // 30 seconds
 
 export default defineBackground(() => {
-  const runScan = async () => {
+  let ipCheckIntervalId: number | null = null;
+
+  /**
+   * Check if current device IP is in the tailnet and run reachability scan if it is
+   */
+  const checkAndRunReachabilityScan = async () => {
     try {
-      await runAndStoreReachabilityScan();
+      // Try to get local IPs (either cached or request fresh)
+      let localIPs = await getCachedLocalIPs();
+
+      // If no cached IPs, try to request discovery from an open page
+      if (localIPs.length === 0) {
+        localIPs = await requestLocalIPDiscoveryFromPage();
+      }
+
+      console.debug("Checking local IPs:", localIPs);
+
+      // Check if current device IP is available in the tailnet
+      const isAvailable = await isCurrentDeviceIPAvailable(localIPs);
+
+      if (isAvailable) {
+        console.log("Current device IP found in tailnet, running reachability scan");
+        try {
+          await runAndStoreReachabilityScan();
+        } catch (error) {
+          console.error("Reachability scan failed:", error);
+        }
+      } else {
+        console.debug("Current device IP not found in tailnet, skipping reachability scan");
+      }
     } catch (error) {
-      console.error("Reachability scan failed", error);
+      console.error("Error checking device IP availability:", error);
     }
   };
 
-  const ensureAlarm = async () => {
-    await browser.alarms.create(REACHABILITY_ALARM_NAME, {
-      delayInMinutes: REACHABILITY_SCAN_PERIOD_MINUTES,
-      periodInMinutes: REACHABILITY_SCAN_PERIOD_MINUTES,
-    });
+  /**
+   * Start the local IP checking interval
+   */
+  const startIPCheckInterval = () => {
+    if (ipCheckIntervalId !== null) {
+      console.debug("IP check interval already running");
+      return;
+    }
+
+    console.log("Starting local IP check interval (every 30 seconds)");
+    // Run immediately on startup
+    void checkAndRunReachabilityScan();
+
+    // Then run on interval
+    ipCheckIntervalId = setInterval(() => {
+      void checkAndRunReachabilityScan();
+    }, LOCAL_IP_CHECK_INTERVAL_MS) as unknown as number;
+  };
+
+  /**
+   * Stop the local IP checking interval
+   */
+  const stopIPCheckInterval = () => {
+    if (ipCheckIntervalId !== null) {
+      console.log("Stopping local IP check interval");
+      clearInterval(ipCheckIntervalId);
+      ipCheckIntervalId = null;
+    }
   };
 
   browser.runtime.onInstalled.addListener(async () => {
-    await ensureAlarm();
-    await runScan();
+    console.log("Extension installed, starting IP check interval");
+    startIPCheckInterval();
   });
 
   browser.runtime.onStartup.addListener(async () => {
-    await ensureAlarm();
-    await runScan();
+    console.log("Browser started, starting IP check interval");
+    startIPCheckInterval();
   });
 
-  browser.alarms.onAlarm.addListener(async (alarm) => {
-    if (alarm.name === REACHABILITY_ALARM_NAME) {
-      await runScan();
-    }
-  });
-
-  void ensureAlarm();
-  void runScan();
+  // Start the interval on initial load
+  startIPCheckInterval();
 
   // Open or switch to the tab page when the extension button is clicked
   browser.action.onClicked.addListener(async () => {

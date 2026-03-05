@@ -3,28 +3,77 @@
   import { Router } from "sv-router";
   import { tailscaleApiKey, themePreference } from "../../lib/storage";
   import { isActive, p } from "./router";
+  import { checkBrowserConnectivity, type ConnectivityCheckResult } from "../../lib/api";
+  import { getCachedLocalIPs } from "../../lib/localIp";
+  import { isCurrentDeviceIPAvailable } from "../../lib/reachability";
   import "./router";
 
   let apiKeyConfigured = $state(false);
   let loading = $state(true);
   let isDarkMode = $state(false);
   let currentTheme = $state<"light" | "dark" | "system">("system");
+  let apiConnected = $state<boolean | null>(null);
+  let deviceInTailnet = $state<boolean | null>(null);
+  let statusCheckInterval: number | null = null;
 
-  onMount(async () => {
-    // Load preferences
-    const key = await tailscaleApiKey.getValue();
-    apiKeyConfigured = !!key;
-    currentTheme = await themePreference.getValue();
-
-    // Set initial theme
-    updateTheme();
-
-    // Listen for system theme changes
-    if (window.matchMedia) {
-      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", updateTheme);
+  async function checkStatus() {
+    // Check API connectivity
+    try {
+      const connectivityResult = await checkBrowserConnectivity();
+      apiConnected = connectivityResult.isConnected;
+    } catch (error) {
+      console.error("Error checking API connectivity:", error);
+      apiConnected = false;
     }
 
-    loading = false;
+    // Check if device is in tailnet
+    try {
+      const localIPs = await getCachedLocalIPs();
+      if (localIPs.length > 0) {
+        deviceInTailnet = await isCurrentDeviceIPAvailable(localIPs);
+      } else {
+        deviceInTailnet = null; // Unknown if no local IPs
+      }
+    } catch (error) {
+      console.error("Error checking device tailnet status:", error);
+      deviceInTailnet = null;
+    }
+  }
+
+  onMount(() => {
+    // Async initialization function
+    const init = async () => {
+      // Load preferences
+      const key = await tailscaleApiKey.getValue();
+      apiKeyConfigured = !!key;
+      currentTheme = await themePreference.getValue();
+
+      // Set initial theme
+      updateTheme();
+
+      // Listen for system theme changes
+      if (window.matchMedia) {
+        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", updateTheme);
+      }
+
+      loading = false;
+
+      // Check status initially and every 30 seconds if API key is configured
+      if (apiKeyConfigured) {
+        await checkStatus();
+        statusCheckInterval = setInterval(checkStatus, 30000) as unknown as number;
+      }
+    };
+
+    // Run the async init
+    init();
+
+    // Return cleanup function directly (not from async)
+    return () => {
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+      }
+    };
   });
 
   function updateTheme() {
@@ -93,6 +142,33 @@
           </div>
         </div>
       </header>
+
+      <div class="status-section">
+        <div class="status-item">
+          <span class="status-label">API Connection:</span>
+          <span class="status-value" class:status-connected={apiConnected === true} class:status-disconnected={apiConnected === false} class:status-unknown={apiConnected === null}>
+            {#if apiConnected === true}
+              <span class="status-dot"></span> Connected
+            {:else if apiConnected === false}
+              <span class="status-dot"></span> Disconnected
+            {:else}
+              <span class="status-dot"></span> Checking...
+            {/if}
+          </span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Device in Tailnet:</span>
+          <span class="status-value" class:status-connected={deviceInTailnet === true} class:status-disconnected={deviceInTailnet === false} class:status-unknown={deviceInTailnet === null}>
+            {#if deviceInTailnet === true}
+              <span class="status-dot"></span> Yes
+            {:else if deviceInTailnet === false}
+              <span class="status-dot"></span> No
+            {:else}
+              <span class="status-dot"></span> Unknown
+            {/if}
+          </span>
+        </div>
+      </div>
 
       <nav class="main-nav">
         <a href={p("/tab.html")} class:active={isActive("/tab.html")}>Devices</a>
@@ -245,6 +321,68 @@
     padding: 1rem 1.5rem;
     color: var(--text-primary);
     border-bottom: 1px solid var(--border-color);
+  }
+
+  .status-section {
+    display: flex;
+    gap: 2rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .status-label {
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .status-value {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 3px;
+    background: var(--bg-primary);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .status-connected {
+    color: green;
+  }
+
+  .status-connected .status-dot {
+    background-color: green;
+    box-shadow: 0 0 4px green;
+  }
+
+  .status-disconnected {
+    color: #e74c3c;
+  }
+
+  .status-disconnected .status-dot {
+    background-color: #e74c3c;
+  }
+
+  .status-unknown {
+    color: var(--text-secondary);
+  }
+
+  .status-unknown .status-dot {
+    background-color: var(--text-secondary);
   }
 
   .main-nav {

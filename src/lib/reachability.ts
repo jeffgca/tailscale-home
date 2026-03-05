@@ -2,9 +2,6 @@ import type { Device } from "./api";
 import { createTailscaleClient } from "./api";
 import { deviceReachability, deviceReachabilityLastScan, type DeviceReachabilityMap, type DeviceReachabilityResult } from "./storage";
 
-export const REACHABILITY_ALARM_NAME = "tailscale-device-reachability-scan";
-export const REACHABILITY_SCAN_PERIOD_MINUTES = 1;
-
 function isIpv6(address: string): boolean {
   return address.includes(":");
 }
@@ -111,4 +108,43 @@ export async function runAndStoreReachabilityScan(): Promise<DeviceReachabilityM
   await deviceReachabilityLastScan.setValue(new Date().toISOString());
 
   return resultMap;
+}
+
+/**
+ * Get all devices from the tailnet
+ */
+export async function getAllDevices(): Promise<Device[]> {
+  const client = await createTailscaleClient();
+  if (!client) {
+    return [];
+  }
+
+  const result = await client.listDevices("all");
+  return result.devices || [];
+}
+
+/**
+ * Check if any of the provided local IP addresses match any device IP in the tailnet
+ */
+export async function isCurrentDeviceIPAvailable(localIPList: string[]): Promise<boolean> {
+  if (localIPList.length === 0) {
+    return false;
+  }
+
+  try {
+    const devices = await getAllDevices();
+
+    for (const device of devices) {
+      if (!device.addresses) continue;
+      for (const deviceIp of device.addresses) {
+        if (localIPList.includes(deviceIp)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error("Error checking if current device IP is available:", error);
+    return false;
+  }
 }

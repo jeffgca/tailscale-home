@@ -194,19 +194,6 @@
 </script>
 
 <div class="devices-container">
-  <div class="local-ip-section">
-    <div class="local-ip-label">This Device IP</div>
-    <div class="local-ip-addresses">
-      {#if localIPs.length > 0}
-        {#each localIPs as ip}
-          <span class="ip-badge">{ip}</span>
-        {/each}
-      {:else}
-        <span class="ip-badge ip-empty">Not available</span>
-      {/if}
-    </div>
-  </div>
-
   <div class="devices-header">
     <div class="devices-title-group">
       <h2>Devices ({devices.length})</h2>
