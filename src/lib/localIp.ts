@@ -162,5 +162,5 @@ export async function requestLocalIPDiscoveryFromPage(): Promise<string[]> {
   }
 
   // Return cached IPs if message failed (or if no pages are listening)
-  return getCachedLocalIPs();
+  return getLocalIPs();
 }

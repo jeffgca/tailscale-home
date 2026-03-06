@@ -1,13 +1,23 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { createTailscaleClient, checkBrowserConnectivity, ConnectivityStatus } from "../lib/api";
+  import { createTailscaleClient, ConnectivityStatus } from "../lib/api";
   import type { Service, ConnectivityCheckResult } from "../lib/api";
+  import { useTailnetContext } from "../lib/tailnetContext";
 
   let services = $state<Service[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let errorDetails = $state<ConnectivityCheckResult | null>(null);
   let refreshing = $state(false);
+  let lastConnectionRevision = $state(0);
+
+  const tailnet = useTailnetContext();
+
+  function applyDisconnectedError() {
+    error = tailnet.state.connectivity?.message || "Unable to reach Tailscale API from this browser.";
+    errorDetails = tailnet.state.connectivity;
+    services = [];
+  }
 
   async function loadServices() {
     loading = true;
@@ -15,10 +25,12 @@
     errorDetails = null;
 
     try {
-      const connectivityCheck = await checkBrowserConnectivity();
-      if (!connectivityCheck.isConnected) {
-        error = connectivityCheck.message;
-        errorDetails = connectivityCheck;
+      if (tailnet.state.apiConnected !== true) {
+        await tailnet.refreshStatus();
+      }
+
+      if (tailnet.state.apiConnected !== true) {
+        applyDisconnectedError();
         return;
       }
 
@@ -40,12 +52,30 @@
 
   async function refreshServices() {
     refreshing = true;
+    await tailnet.refreshStatus();
     await loadServices();
     refreshing = false;
   }
 
   onMount(() => {
     void loadServices();
+  });
+
+  $effect(() => {
+    const revision = tailnet.state.connectionRevision;
+
+    if (revision !== lastConnectionRevision) {
+      lastConnectionRevision = revision;
+      void loadServices();
+    }
+  });
+
+  $effect(() => {
+    const connected = tailnet.state.apiConnected;
+
+    if (connected === false) {
+      applyDisconnectedError();
+    }
   });
 </script>
 

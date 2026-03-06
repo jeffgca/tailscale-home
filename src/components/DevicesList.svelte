@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { createTailscaleClient, checkBrowserConnectivity, ConnectivityStatus } from "../lib/api";
+  import { createTailscaleClient, ConnectivityStatus } from "../lib/api";
   import type { Device, ConnectivityCheckResult } from "../lib/api";
   import { deviceReachability, deviceReachabilityLastScan, type DeviceReachabilityMap } from "../lib/storage";
+  import { useTailnetContext } from "../lib/tailnetContext";
   import { navigate } from "../entrypoints/tab/router";
-  import { getCachedLocalIPs } from "../lib/localIp";
+  import { discoverAndStoreLocalIPs, getCachedLocalIPs } from "../lib/localIp";
 
   let devices = $state<Device[]>([]);
   let loading = $state(true);
@@ -15,6 +16,15 @@
   let lastReachabilityScan = $state<string | null>(null);
   let localIPs = $state<string[]>([]);
   let currentDeviceId = $state<string | null>(null);
+  let lastConnectionRevision = $state(0);
+
+  const tailnet = useTailnetContext();
+
+  function applyDisconnectedError() {
+    error = tailnet.state.connectivity?.message || "Unable to reach Tailscale API.";
+    errorDetails = tailnet.state.connectivity;
+    devices = [];
+  }
 
   async function loadDevices() {
     loading = true;
@@ -22,12 +32,12 @@
     errorDetails = null;
 
     try {
-      // First check connectivity
-      const connectivityCheck = await checkBrowserConnectivity();
+      if (tailnet.state.apiConnected !== true) {
+        await tailnet.refreshStatus();
+      }
 
-      if (!connectivityCheck.isConnected) {
-        error = connectivityCheck.message;
-        errorDetails = connectivityCheck;
+      if (tailnet.state.apiConnected !== true) {
+        applyDisconnectedError();
         loading = false;
         return;
       }
@@ -43,9 +53,11 @@
       const result = await client.listDevices("all");
       devices = result.devices || [];
 
-      // Identify current device if we already have local IPs
-      if (localIPs.length > 0) {
+      // Only label a current device when we are in the tailnet.
+      if (tailnet.state.deviceInTailnet === true && localIPs.length > 0) {
         currentDeviceId = findCurrentDevice(devices, localIPs);
+      } else {
+        currentDeviceId = null;
       }
 
       // Auto-redirect to services if no devices but services exist
@@ -71,6 +83,7 @@
 
   async function refreshDevices() {
     refreshing = true;
+    await tailnet.refreshStatus();
     await loadDevices();
     await loadReachability();
     refreshing = false;
@@ -121,36 +134,51 @@
       void loadReachability();
     }, 15000);
 
-    // Listen for device connection notifications from background script
-    const messageListener = (message: any) => {
-      if (message.type === "DEVICE_CONNECTED_TO_TAILNET") {
-        console.log("Device connected to tailnet notification received, refreshing devices");
-        void loadDevices();
-        void loadReachability();
-      } else if (message.type === "TAILNET_CONNECTION_CHANGED") {
-        if (message.connected) {
-          console.log("Device connected to tailnet, refreshing devices");
-        } else {
-          console.log("Device disconnected from tailnet, refreshing devices");
-        }
-        void loadDevices();
-        void loadReachability();
-      }
-    };
-
-    browser.runtime.onMessage.addListener(messageListener);
-
     return () => {
       window.clearInterval(intervalId);
-      browser.runtime.onMessage.removeListener(messageListener);
     };
+  });
+
+  $effect(() => {
+    const revision = tailnet.state.connectionRevision;
+
+    if (revision !== lastConnectionRevision) {
+      lastConnectionRevision = revision;
+      void (async () => {
+        await loadLocalIPs();
+        await loadDevices();
+        await loadReachability();
+      })();
+    }
+  });
+
+  $effect(() => {
+    const connected = tailnet.state.apiConnected;
+
+    if (connected === false) {
+      applyDisconnectedError();
+    }
+  });
+
+  $effect(() => {
+    const inTailnet = tailnet.state.deviceInTailnet;
+
+    if (inTailnet !== true) {
+      currentDeviceId = null;
+    }
   });
 
   async function loadLocalIPs() {
     try {
-      localIPs = await getCachedLocalIPs();
+      const discoveredLocalIPs = await discoverAndStoreLocalIPs(2500);
+      localIPs = discoveredLocalIPs.length > 0 ? discoveredLocalIPs : await getCachedLocalIPs();
+
       // Identify the current device after loading local IPs
-      currentDeviceId = findCurrentDevice(devices, localIPs);
+      if (tailnet.state.deviceInTailnet === true) {
+        currentDeviceId = findCurrentDevice(devices, localIPs);
+      } else {
+        currentDeviceId = null;
+      }
     } catch (error) {
       console.error("Failed to load local IPs:", error);
     }
@@ -197,7 +225,7 @@
   }
 
   function isCurrentDevice(deviceId: string): boolean {
-    return deviceId === currentDeviceId;
+    return tailnet.state.deviceInTailnet === true && deviceId === currentDeviceId;
   }
 
   function getSortedDevices(devicesArr: Device[], currDeviceId: string | null): Device[] {

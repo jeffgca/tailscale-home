@@ -2,9 +2,10 @@
   import { onMount } from "svelte";
   import { Router } from "sv-router";
   import { tailscaleApiKey, themePreference } from "../../lib/storage";
+  import { provideTailnetContext, type TailnetContextState } from "../../lib/tailnetContext";
   import { isActive, p } from "./router";
   import { checkBrowserConnectivity, type ConnectivityCheckResult } from "../../lib/api";
-  import { getCachedLocalIPs } from "../../lib/localIp";
+  import { discoverAndStoreLocalIPs, getCachedLocalIPs } from "../../lib/localIp";
   import { isCurrentDeviceIPAvailable } from "../../lib/reachability";
   import "./router";
 
@@ -12,52 +13,100 @@
   let loading = $state(true);
   let isDarkMode = $state(false);
   let currentTheme = $state<"light" | "dark" | "system">("system");
-  let apiConnected = $state<boolean | null>(null);
-  let deviceInTailnet = $state<boolean | null>(null);
+  let tailnetState = $state<TailnetContextState>({
+    apiConnected: null as boolean | null,
+    deviceInTailnet: null as boolean | null,
+    checking: false,
+    forceCheckingDevice: false,
+    lastCheckAt: null as string | null,
+    connectivity: null,
+    connectionRevision: 0,
+  });
   let statusCheckInterval: number | null = null;
-  let forceCheckingDevice = $state(false);
+  let latestStatusRequestId = 0;
+
+  provideTailnetContext({
+    state: tailnetState,
+    refreshStatus: checkStatus,
+    forceCheckDeviceStatus,
+  });
 
   async function checkStatus() {
+    const requestId = ++latestStatusRequestId;
+    const previousApiConnected = tailnetState.apiConnected;
+    const previousDeviceInTailnet = tailnetState.deviceInTailnet;
+    tailnetState.checking = true;
+
+    let nextApiConnected: boolean | null = null;
+    let nextConnectivity: ConnectivityCheckResult | null = null;
+
     // Check API connectivity
     try {
       const connectivityResult = await checkBrowserConnectivity();
-      apiConnected = connectivityResult.isConnected;
+      nextApiConnected = connectivityResult.isConnected;
+      nextConnectivity = connectivityResult;
     } catch (error) {
       console.error("Error checking API connectivity:", error);
-      apiConnected = false;
+      nextApiConnected = false;
     }
+
+    let nextDeviceInTailnet: boolean | null = null;
 
     // Check if device is in tailnet
     try {
-      const localIPs = await getCachedLocalIPs();
+      const discoveredLocalIPs = await discoverAndStoreLocalIPs(2500);
+      const localIPs = discoveredLocalIPs.length > 0 ? discoveredLocalIPs : await getCachedLocalIPs();
+
       if (localIPs.length > 0) {
-        deviceInTailnet = await isCurrentDeviceIPAvailable(localIPs);
+        nextDeviceInTailnet = await isCurrentDeviceIPAvailable(localIPs);
       } else {
-        deviceInTailnet = null; // Unknown if no local IPs
+        nextDeviceInTailnet = null; // Unknown if no local IPs
       }
     } catch (error) {
       console.error("Error checking device tailnet status:", error);
-      deviceInTailnet = null;
+      nextDeviceInTailnet = null;
     }
+
+    if (requestId !== latestStatusRequestId) {
+      return;
+    }
+
+    tailnetState.apiConnected = nextApiConnected;
+    tailnetState.connectivity = nextConnectivity;
+    tailnetState.deviceInTailnet = nextDeviceInTailnet;
+
+    if (previousApiConnected !== nextApiConnected || previousDeviceInTailnet !== nextDeviceInTailnet) {
+      tailnetState.connectionRevision += 1;
+    }
+
+    tailnetState.lastCheckAt = new Date().toISOString();
+    tailnetState.checking = false;
   }
 
   async function forceCheckDeviceStatus() {
-    forceCheckingDevice = true;
+    const previousDeviceInTailnet = tailnetState.deviceInTailnet;
+    tailnetState.forceCheckingDevice = true;
     try {
-      const localIPs = await getCachedLocalIPs();
+      const discoveredLocalIPs = await discoverAndStoreLocalIPs(2500);
+      const localIPs = discoveredLocalIPs.length > 0 ? discoveredLocalIPs : await getCachedLocalIPs();
+
       if (localIPs.length > 0) {
         console.log("Force checking device IP against tailnet...");
-        deviceInTailnet = await isCurrentDeviceIPAvailable(localIPs);
-        console.log(`Device IP check result: ${deviceInTailnet ? "IN TAILNET" : "NOT IN TAILNET"}`);
+        tailnetState.deviceInTailnet = await isCurrentDeviceIPAvailable(localIPs);
+        console.log(`Device IP check result: ${tailnetState.deviceInTailnet ? "IN TAILNET" : "NOT IN TAILNET"}`);
       } else {
-        deviceInTailnet = null; // Unknown if no local IPs
+        tailnetState.deviceInTailnet = null; // Unknown if no local IPs
         console.warn("No local IPs available for force check");
       }
     } catch (error) {
       console.error("Error force checking device tailnet status:", error);
-      deviceInTailnet = null;
+      tailnetState.deviceInTailnet = null;
     } finally {
-      forceCheckingDevice = false;
+      if (tailnetState.deviceInTailnet !== previousDeviceInTailnet) {
+        tailnetState.connectionRevision += 1;
+      }
+      tailnetState.lastCheckAt = new Date().toISOString();
+      tailnetState.forceCheckingDevice = false;
     }
   }
 
@@ -90,8 +139,12 @@
     const messageListener = (message: any) => {
       if (message.type === "DEVICE_CONNECTED_TO_TAILNET") {
         console.log("Device connected to tailnet notification received, refreshing status");
+        tailnetState.deviceInTailnet = true;
+        tailnetState.connectionRevision += 1;
         void checkStatus();
       } else if (message.type === "TAILNET_CONNECTION_CHANGED") {
+        tailnetState.deviceInTailnet = message.connected ? true : false;
+        tailnetState.connectionRevision += 1;
         if (message.connected) {
           console.log("Device connected to tailnet, refreshing status");
         } else {
@@ -183,10 +236,10 @@
           <div class="status-section">
             <div class="status-item">
               <span class="status-label">API:</span>
-              <span class="status-value" class:status-connected={apiConnected === true} class:status-disconnected={apiConnected === false} class:status-unknown={apiConnected === null}>
-                {#if apiConnected === true}
+              <span class="status-value" class:status-connected={tailnetState.apiConnected === true} class:status-disconnected={tailnetState.apiConnected === false} class:status-unknown={tailnetState.apiConnected === null}>
+                {#if tailnetState.apiConnected === true}
                   <span class="status-dot"></span> Connected
-                {:else if apiConnected === false}
+                {:else if tailnetState.apiConnected === false}
                   <span class="status-dot"></span> Disconnected
                 {:else}
                   <span class="status-dot"></span> Checking...
@@ -195,17 +248,17 @@
             </div>
             <div class="status-item">
               <span class="status-label">Device:</span>
-              <span class="status-value" class:status-connected={deviceInTailnet === true} class:status-disconnected={deviceInTailnet === false} class:status-unknown={deviceInTailnet === null}>
-                {#if deviceInTailnet === true}
+              <span class="status-value" class:status-connected={tailnetState.deviceInTailnet === true} class:status-disconnected={tailnetState.deviceInTailnet === false} class:status-unknown={tailnetState.deviceInTailnet === null}>
+                {#if tailnetState.deviceInTailnet === true}
                   <span class="status-dot"></span> In Tailnet
-                {:else if deviceInTailnet === false}
+                {:else if tailnetState.deviceInTailnet === false}
                   <span class="status-dot"></span> Not in Tailnet
                 {:else}
                   <span class="status-dot"></span> Unknown
                 {/if}
               </span>
-              <button class="force-check-btn" onclick={forceCheckDeviceStatus} disabled={forceCheckingDevice} title="Force check if this device's IP is in the tailnet">
-                {forceCheckingDevice ? "Checking..." : "Check IP"}
+              <button class="force-check-btn" onclick={forceCheckDeviceStatus} disabled={tailnetState.forceCheckingDevice} title="Force check if this device's IP is in the tailnet">
+                {tailnetState.forceCheckingDevice ? "Checking..." : "Check IP"}
               </button>
             </div>
           </div>

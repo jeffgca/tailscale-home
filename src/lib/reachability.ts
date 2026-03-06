@@ -38,8 +38,6 @@ async function probeUrl(url: string, timeoutMs = 2500): Promise<boolean> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  console.log(url, "probe started");
-
   try {
     let result = await fetch(url, {
       method: "HEAD",
