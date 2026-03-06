@@ -121,8 +121,28 @@
       void loadReachability();
     }, 15000);
 
+    // Listen for device connection notifications from background script
+    const messageListener = (message: any) => {
+      if (message.type === "DEVICE_CONNECTED_TO_TAILNET") {
+        console.log("Device connected to tailnet notification received, refreshing devices");
+        void loadDevices();
+        void loadReachability();
+      } else if (message.type === "TAILNET_CONNECTION_CHANGED") {
+        if (message.connected) {
+          console.log("Device connected to tailnet, refreshing devices");
+        } else {
+          console.log("Device disconnected from tailnet, refreshing devices");
+        }
+        void loadDevices();
+        void loadReachability();
+      }
+    };
+
+    browser.runtime.onMessage.addListener(messageListener);
+
     return () => {
       window.clearInterval(intervalId);
+      browser.runtime.onMessage.removeListener(messageListener);
     };
   });
 

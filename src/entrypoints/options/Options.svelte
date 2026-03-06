@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { tailscaleApiKey, tailscaleTailnet } from "../../lib/storage";
+  import { tailscaleApiKey, tailscaleTailnet, tailnetCheckIntervalSeconds, deviceProbeIntervalSeconds } from "../../lib/storage";
   import { isValidApiKeyFormat, TailscaleAPI } from "../../lib/api";
 
   let apiKey = $state("");
   let tailnet = $state("-");
+  let tailnetCheckInterval = $state(30);
+  let deviceProbeInterval = $state(300);
   let showApiKey = $state(false);
   let saveStatus = $state<"idle" | "saving" | "saved" | "error">("idle");
   let errorMessage = $state("");
@@ -15,6 +17,8 @@
   onMount(async () => {
     apiKey = await tailscaleApiKey.getValue();
     tailnet = await tailscaleTailnet.getValue();
+    tailnetCheckInterval = await tailnetCheckIntervalSeconds.getValue();
+    deviceProbeInterval = await deviceProbeIntervalSeconds.getValue();
   });
 
   async function handleSave() {
@@ -32,6 +36,8 @@
     try {
       await tailscaleApiKey.setValue(apiKey);
       await tailscaleTailnet.setValue(tailnet);
+      await tailnetCheckIntervalSeconds.setValue(tailnetCheckInterval);
+      await deviceProbeIntervalSeconds.setValue(deviceProbeInterval);
 
       saveStatus = "saved";
       setTimeout(() => {
@@ -140,6 +146,20 @@
       <label for="tailnet"> Tailnet ID </label>
       <input id="tailnet" type="text" bind:value={tailnet} placeholder="-" />
       <p class="help-text">Use "-" for your default tailnet, or enter your specific tailnet ID</p>
+    </div>
+
+    <hr />
+
+    <div class="form-group">
+      <label for="tailnetCheckInterval"> Tailnet Connection Check Interval (seconds) </label>
+      <input id="tailnetCheckInterval" type="number" bind:value={tailnetCheckInterval} min="5" max="300" />
+      <p class="help-text">How often to check if this device is connected to the tailnet (default: 30 seconds)</p>
+    </div>
+
+    <div class="form-group">
+      <label for="deviceProbeInterval"> Device Reachability Probe Interval (seconds) </label>
+      <input id="deviceProbeInterval" type="number" bind:value={deviceProbeInterval} min="30" max="3600" />
+      <p class="help-text">How often to probe device reachability when connected to tailnet (default: 300 seconds / 5 minutes)</p>
     </div>
 
     {#if errorMessage}

@@ -15,6 +15,7 @@
   let apiConnected = $state<boolean | null>(null);
   let deviceInTailnet = $state<boolean | null>(null);
   let statusCheckInterval: number | null = null;
+  let forceCheckingDevice = $state(false);
 
   async function checkStatus() {
     // Check API connectivity
@@ -37,6 +38,26 @@
     } catch (error) {
       console.error("Error checking device tailnet status:", error);
       deviceInTailnet = null;
+    }
+  }
+
+  async function forceCheckDeviceStatus() {
+    forceCheckingDevice = true;
+    try {
+      const localIPs = await getCachedLocalIPs();
+      if (localIPs.length > 0) {
+        console.log("Force checking device IP against tailnet...");
+        deviceInTailnet = await isCurrentDeviceIPAvailable(localIPs);
+        console.log(`Device IP check result: ${deviceInTailnet ? "IN TAILNET" : "NOT IN TAILNET"}`);
+      } else {
+        deviceInTailnet = null; // Unknown if no local IPs
+        console.warn("No local IPs available for force check");
+      }
+    } catch (error) {
+      console.error("Error force checking device tailnet status:", error);
+      deviceInTailnet = null;
+    } finally {
+      forceCheckingDevice = false;
     }
   }
 
@@ -65,6 +86,23 @@
       }
     };
 
+    // Listen for device connection notifications from background script
+    const messageListener = (message: any) => {
+      if (message.type === "DEVICE_CONNECTED_TO_TAILNET") {
+        console.log("Device connected to tailnet notification received, refreshing status");
+        void checkStatus();
+      } else if (message.type === "TAILNET_CONNECTION_CHANGED") {
+        if (message.connected) {
+          console.log("Device connected to tailnet, refreshing status");
+        } else {
+          console.log("Device disconnected from tailnet, refreshing status");
+        }
+        void checkStatus();
+      }
+    };
+
+    browser.runtime.onMessage.addListener(messageListener);
+
     // Run the async init
     init();
 
@@ -73,6 +111,7 @@
       if (statusCheckInterval) {
         clearInterval(statusCheckInterval);
       }
+      browser.runtime.onMessage.removeListener(messageListener);
     };
   });
 
@@ -134,41 +173,44 @@
       <header class="main-header">
         <div class="header-content">
           <h1>Tailscale Home</h1>
+
           <div class="header-actions">
             <button class="theme-btn" onclick={toggleTheme} title={`Switch theme (current: ${currentTheme})`}>
               {isDarkMode ? "Light" : "Dark"}
             </button>
             <button class="settings-btn" onclick={openSettings} title="Settings">Settings</button>
           </div>
+          <div class="status-section">
+            <div class="status-item">
+              <span class="status-label">API:</span>
+              <span class="status-value" class:status-connected={apiConnected === true} class:status-disconnected={apiConnected === false} class:status-unknown={apiConnected === null}>
+                {#if apiConnected === true}
+                  <span class="status-dot"></span> Connected
+                {:else if apiConnected === false}
+                  <span class="status-dot"></span> Disconnected
+                {:else}
+                  <span class="status-dot"></span> Checking...
+                {/if}
+              </span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Device:</span>
+              <span class="status-value" class:status-connected={deviceInTailnet === true} class:status-disconnected={deviceInTailnet === false} class:status-unknown={deviceInTailnet === null}>
+                {#if deviceInTailnet === true}
+                  <span class="status-dot"></span> In Tailnet
+                {:else if deviceInTailnet === false}
+                  <span class="status-dot"></span> Not in Tailnet
+                {:else}
+                  <span class="status-dot"></span> Unknown
+                {/if}
+              </span>
+              <button class="force-check-btn" onclick={forceCheckDeviceStatus} disabled={forceCheckingDevice} title="Force check if this device's IP is in the tailnet">
+                {forceCheckingDevice ? "Checking..." : "Check IP"}
+              </button>
+            </div>
+          </div>
         </div>
       </header>
-
-      <div class="status-section">
-        <div class="status-item">
-          <span class="status-label">API Connection:</span>
-          <span class="status-value" class:status-connected={apiConnected === true} class:status-disconnected={apiConnected === false} class:status-unknown={apiConnected === null}>
-            {#if apiConnected === true}
-              <span class="status-dot"></span> Connected
-            {:else if apiConnected === false}
-              <span class="status-dot"></span> Disconnected
-            {:else}
-              <span class="status-dot"></span> Checking...
-            {/if}
-          </span>
-        </div>
-        <div class="status-item">
-          <span class="status-label">Device in Tailnet:</span>
-          <span class="status-value" class:status-connected={deviceInTailnet === true} class:status-disconnected={deviceInTailnet === false} class:status-unknown={deviceInTailnet === null}>
-            {#if deviceInTailnet === true}
-              <span class="status-dot"></span> Yes
-            {:else if deviceInTailnet === false}
-              <span class="status-dot"></span> No
-            {:else}
-              <span class="status-dot"></span> Unknown
-            {/if}
-          </span>
-        </div>
-      </div>
 
       <nav class="main-nav">
         <a href={p("/tab.html")} class:active={isActive("/tab.html")}>Devices</a>
@@ -325,17 +367,15 @@
 
   .status-section {
     display: flex;
-    gap: 2rem;
-    padding: 0.75rem 1.5rem;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
+    gap: 1.5rem;
+    align-items: center;
   }
 
   .status-item {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
 
   .status-label {
@@ -348,9 +388,10 @@
     align-items: center;
     gap: 0.35rem;
     font-weight: 600;
-    padding: 0.25rem 0.6rem;
+    padding: 0.25rem 0.5rem;
     border-radius: 3px;
-    background: var(--bg-primary);
+    background: var(--bg-secondary);
+    white-space: nowrap;
   }
 
   .status-dot {
@@ -385,6 +426,28 @@
     background-color: var(--text-secondary);
   }
 
+  .force-check-btn {
+    padding: 0.3rem 0.6rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .force-check-btn:hover:not(:disabled) {
+    background: var(--border-color);
+  }
+
+  .force-check-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
   .main-nav {
     display: flex;
     gap: 0.5rem;
@@ -414,17 +477,19 @@
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
-    gap: 1rem;
+    gap: 1.5rem;
   }
 
   .header-content h1 {
     font-size: 1.5rem;
     margin: 0;
+    white-space: nowrap;
   }
 
   .header-actions {
     display: flex;
     gap: 0.75rem;
+    flex-shrink: 0;
   }
 
   .theme-btn,
@@ -455,8 +520,22 @@
     }
 
     .header-content {
-      flex-direction: column;
-      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .header-content h1 {
+      font-size: 1.2rem;
+    }
+
+    .status-section {
+      order: 3;
+      width: 100%;
+      gap: 1rem;
+    }
+
+    .status-item {
+      font-size: 0.75rem;
     }
 
     .welcome-content {

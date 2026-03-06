@@ -60,3 +60,17 @@ export const localIPs = storage.defineItem<string[]>("local:localIPs", {
 export const localIPsLastDiscovered = storage.defineItem<string | null>("local:localIPsLastDiscovered", {
   defaultValue: null,
 });
+
+/**
+ * Interval in seconds to check if device is connected to tailnet
+ */
+export const tailnetCheckIntervalSeconds = storage.defineItem<number>("local:tailnetCheckIntervalSeconds", {
+  defaultValue: 30,
+});
+
+/**
+ * Interval in seconds to probe device reachability
+ */
+export const deviceProbeIntervalSeconds = storage.defineItem<number>("local:deviceProbeIntervalSeconds", {
+  defaultValue: 300, // 5 minutes
+});
