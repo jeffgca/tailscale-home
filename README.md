@@ -21,6 +21,7 @@ A browser extension for Tailscale / Tailnet users that authenticates you gives y
 
 ## Backlog
 
+- [ ] [SECURITY] should we use Oauth for authentication instead of storing the api token? Probably.
 - [ ] how do we know which tailnet host we're on, if we are on one?
 - [ ] would this all be much easier if we had a bun executable that implemented native messaging and had raw sockets? well yes but is bundling an executable practical? Electrobun companion app?
 - [ ] is there a local api / interface exposed by the tailscale client we can hijack, er, take advantage of?
