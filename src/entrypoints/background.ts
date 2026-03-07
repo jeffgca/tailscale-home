@@ -2,10 +2,12 @@ import {
 	runAndStoreReachabilityScan,
 	isCurrentDeviceIPAvailable,
 } from '../lib/reachability'
+
 import {
 	getCachedLocalIPs,
 	requestLocalIPDiscoveryFromPage,
 } from '../lib/localIp'
+
 import {
 	tailnetCheckIntervalSeconds,
 	deviceProbeIntervalSeconds,
