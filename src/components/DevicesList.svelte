@@ -10,9 +10,7 @@
 	import { useTailnetContext } from '../lib/tailnetContext'
 	import { navigate } from '../entrypoints/tab/router'
 	import { discoverAndStoreLocalIPs, getCachedLocalIPs } from '../lib/localIp'
-
 	import DeviceCard from './DeviceCard.svelte'
-
 	let devices = $state<Device[]>([])
 	let loading = $state(true)
 	let error = $state<string | null>(null)
