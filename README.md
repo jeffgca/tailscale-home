@@ -15,6 +15,9 @@ A browser extension for Tailscale / Tailnet users that authenticates you gives y
 - [x] a browser action button that opens the main extension page
 - [x] the main extension page that displays a list of tailnet devices from the tailscale api, including the name, ip address and whether the device is currently online
 - [x] a background timer that regularly checks to see if the tailscale network is available
+- [x] ui updates to automagically reflect tailnet connection status
+- [x] hard refresh button to manually refresh tailnet connection status
+- [x] a basic listing of available tailnet services
 
 ## Backlog
 
