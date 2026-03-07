@@ -98,8 +98,8 @@
     const result = reachability[deviceId];
     if (!result) return "Unknown";
 
-    if (result.status === "reachable") return "Reachable";
-    if (result.status === "unreachable") return "Unreachable";
+    if (result.status === "reachable") return "HTTP: ✅";
+    if (result.status === "unreachable") return "HTTP: ❌";
     return "Unknown";
   }
 
@@ -317,7 +317,7 @@
               </div>
             {/if}
             <div class="detail-row">
-              <span class="detail-label">Reachability</span>
+              <span class="detail-label">Has HTTP?</span>
               <span class="detail-value reachability-value" style="--reachability-color: {getReachabilityColor(device.id)}">
                 {getReachabilityLabel(device.id)}
               </span>
@@ -363,54 +363,10 @@
   }
 
   .devices-container {
-    width: 100%;
+    width: 95%;
     padding: 1rem;
-    overflow-y: auto;
+    /* overflow-y: auto; */
     flex: 1;
-  }
-
-  .local-ip-section {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .local-ip-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
-    letter-spacing: 0.5px;
-  }
-
-  .local-ip-addresses {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .ip-badge {
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    padding: 0.4rem 0.75rem;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 0.9rem;
-    border: 1px solid var(--border-color);
-    user-select: all;
-  }
-
-  .ip-badge:hover {
-    cursor: pointer;
-    opacity: 0.8;
-  }
-
-  .ip-empty {
-    color: var(--text-secondary);
-    font-style: italic;
   }
 
   .devices-header {
