@@ -130,9 +130,13 @@ export class TailscaleAPI {
 	 * List all devices in the tailnet
 	 */
 	async listDevices(fields: 'all' | 'default' = 'default') {
-		return this.request<{ devices: Device[] }>(
+		let devices = await this.request<{ devices: Device[] }>(
 			`/tailnet/${this.tailnet}/devices?fields=${fields}`,
 		)
+
+		console.log('devices', devices)
+
+		return devices
 	}
 
 	/**
