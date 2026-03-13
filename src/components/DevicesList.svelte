@@ -9,7 +9,6 @@
 	} from '../lib/storage'
 	import { useTailnetContext } from '../lib/tailnetContext'
 	import { navigate } from '../entrypoints/tab/router'
-	import { discoverAndStoreLocalIPs, getCachedLocalIPs } from '../lib/localIp'
 	import DeviceCard from './DeviceCard.svelte'
 	let devices = $state<Device[]>([])
 	let loading = $state(true)
@@ -180,22 +179,7 @@
 	})
 
 	async function loadLocalIPs() {
-		try {
-			const discoveredLocalIPs = await discoverAndStoreLocalIPs(2500)
-			localIPs =
-				discoveredLocalIPs.length > 0
-					? discoveredLocalIPs
-					: await getCachedLocalIPs()
-
-			// Identify the current device after loading local IPs
-			if (tailnet.state.deviceInTailnet === true) {
-				currentDeviceId = findCurrentDevice(devices, localIPs)
-			} else {
-				currentDeviceId = null
-			}
-		} catch (error) {
-			console.error('Failed to load local IPs:', error)
-		}
+		return false
 	}
 
 	function getStatusColor(connected: boolean, authorized: boolean): string {

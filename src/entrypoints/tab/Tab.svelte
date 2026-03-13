@@ -12,10 +12,7 @@
 		checkBrowserConnectivity,
 		type ConnectivityCheckResult,
 	} from '../../lib/api'
-	import {
-		discoverAndStoreLocalIPs,
-		getCachedLocalIPs,
-	} from '../../lib/localIp'
+
 	import { isCurrentDeviceIPAvailable } from '../../lib/reachability'
 	import './router'
 
@@ -62,24 +59,6 @@
 
 		let nextDeviceInTailnet: boolean | null = null
 
-		// Check if device is in tailnet
-		try {
-			const discoveredLocalIPs = await discoverAndStoreLocalIPs(2500)
-			const localIPs =
-				discoveredLocalIPs.length > 0
-					? discoveredLocalIPs
-					: await getCachedLocalIPs()
-
-			if (localIPs.length > 0) {
-				nextDeviceInTailnet = await isCurrentDeviceIPAvailable(localIPs)
-			} else {
-				nextDeviceInTailnet = null // Unknown if no local IPs
-			}
-		} catch (error) {
-			console.error('Error checking device tailnet status:', error)
-			nextDeviceInTailnet = null
-		}
-
 		if (requestId !== latestStatusRequestId) {
 			return
 		}
@@ -100,36 +79,8 @@
 	}
 
 	async function forceCheckDeviceStatus() {
-		const previousDeviceInTailnet = tailnetState.deviceInTailnet
-		tailnetState.forceCheckingDevice = true
-		try {
-			const discoveredLocalIPs = await discoverAndStoreLocalIPs(2500)
-			const localIPs =
-				discoveredLocalIPs.length > 0
-					? discoveredLocalIPs
-					: await getCachedLocalIPs()
-
-			if (localIPs.length > 0) {
-				console.log('Force checking device IP against tailnet...')
-				tailnetState.deviceInTailnet =
-					await isCurrentDeviceIPAvailable(localIPs)
-				console.log(
-					`Device IP check result: ${tailnetState.deviceInTailnet ? 'IN TAILNET' : 'NOT IN TAILNET'}`,
-				)
-			} else {
-				tailnetState.deviceInTailnet = null // Unknown if no local IPs
-				console.warn('No local IPs available for force check')
-			}
-		} catch (error) {
-			console.error('Error force checking device tailnet status:', error)
-			tailnetState.deviceInTailnet = null
-		} finally {
-			if (tailnetState.deviceInTailnet !== previousDeviceInTailnet) {
-				tailnetState.connectionRevision += 1
-			}
-			tailnetState.lastCheckAt = new Date().toISOString()
-			tailnetState.forceCheckingDevice = false
-		}
+		// const previousDeviceInTailnet = tailnetState.deviceInTailnet
+		// tailnetState.forceCheckingDevice = true
 	}
 
 	onMount(() => {
