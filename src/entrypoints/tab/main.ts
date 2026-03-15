@@ -1,10 +1,11 @@
-import { mount } from 'svelte'
-import './app.css'
-import App from './Tab.svelte'
+import { mount } from 'svelte';
+import './app.css';
+
+import App from './Tab.svelte';
 
 const app = mount(App, {
-	target: document.getElementById('app')!,
-})
+	target: document.getElementById('app'),
+});
 
 // Handle local IP discovery requests from background script
 // browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -27,4 +28,4 @@ const app = mount(App, {
 // 	console.error('Auto-discovery of local IPs failed:', error)
 // })
 
-export default app
+export default app;

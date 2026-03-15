@@ -1,5 +1,6 @@
-import { defineConfig } from 'wxt'
-import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from 'wxt';
+// import { svelte } from '@sveltejs/vite-plugin-svelte';
+import tailwindcss from '@tailwindcss/vite';
 
 // WEB_RTC
 
@@ -18,4 +19,4 @@ export default defineConfig({
 	vite: () => ({
 		plugins: [tailwindcss()],
 	}),
-})
+});
