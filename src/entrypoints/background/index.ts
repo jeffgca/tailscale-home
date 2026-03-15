@@ -71,13 +71,35 @@ export default defineBackground(() => {
 	// 	registerService(APP_KEY, app);
 	// })();
 
-	tailscaleApiKey.getValue().then((apiKey) => {
-		// api
-		const app = new App({ debug: IS_FIREFOX, apiKey: apiKey });
+	Promise.all([
+		tailscaleApiKey.getValue(),
+		tailnetCheckIntervalSeconds.getValue(),
+		deviceProbeIntervalSeconds.getValue(),
+	]).then(([apiKey, tailnetCheckInterval, deviceProbeInterval]) => {
+		console.log('XXX', apiKey, tailnetCheckInterval, deviceProbeInterval);
+
+		const app = new App({
+			debug: IS_FIREFOX,
+			apiKey,
+			tailnetCheckInterval,
+			deviceProbeInterval,
+		});
+
 		app.initialize().then(() => {
 			registerService(APP_KEY, app);
 		});
 	});
+
+	// tailscaleApiKey.getValue().then(async (apiKey) => {
+	// 	// api
+
+	// 	let timers = {
+	// 		tailnetCheckInterval: await tailnetCheckIntervalSeconds.getValue(),
+	// 		deviceProbeInterval: await deviceProbeIntervalSeconds.getValue(),
+	// 	};
+
+	// 	console.log('XXX', apiKey, timers);
+	// });
 
 	// console.log('apiKey', apiKey)
 });

@@ -3,6 +3,7 @@ import { createTailscaleClient, checkBrowserConnectivity } from './api';
 export class App {
 	TAILNET_API_AVAILABLE = false;
 	TAILNET_CONNECTED = false;
+	timers = [];
 
 	constructor(options?: { debug?: boolean; apiKey?: string }) {
 		console.log('App initialized', options);
@@ -37,6 +38,7 @@ export class App {
 			TAILNET_CONNECTED: this.TAILNET_CONNECTED,
 			debug: this.debug,
 			apiKey: this.apiKey,
+			timers: this.timers,
 		};
 	}
 }

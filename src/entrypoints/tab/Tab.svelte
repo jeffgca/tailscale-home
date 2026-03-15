@@ -1,13 +1,13 @@
 <script lang="ts">
 	import './app.css';
 	import { onMount } from 'svelte';
+	import { JsonView } from '@zerodevx/svelte-json-view';
 
 	let loading = $state(false);
 
 	import { createProxyService } from '@webext-core/proxy-service';
 	import { APP_KEY } from '../background/proxy_keys';
 	import { setContext } from 'svelte';
-	// import app from './main';
 
 	// 5. Get a proxy of your service
 	const appService = createProxyService(APP_KEY);
@@ -17,36 +17,14 @@
 	});
 
 	let appState = $state({});
+	// let result2 = $state({});
 
-	// appService.getState().then((state) => {
-	// 	console.log('Initial app state:', state);
-	// 	appState = state;
-	// });
+	$inspect('appState', appState);
+
+	appState = await appService.getState();
 
 	onMount(async () => {
-		// Async initialization function
-		// const init = async () => {
-		// 	loading = true;
-		// 	try {
-		// 		await appService.initialize();
-		// 		console.log('App state after initialization:', appState);
-		// 	} catch (error) {
-		// 		console.error('Error during app initialization:', error);
-		// 	} finally {
-		// 		loading = false;
-		// 	}
-		// };
-
-		// await init();
-
-		// Listen for device connection notifications from background script
-		const messageListener = (message: any) => {
-			console.log('message:', message);
-		};
-
-		browser.runtime.onMessage.addListener(messageListener);
-
-		// Return cleanup function directly (not from async)
+		console.log('onMount');
 	});
 
 	function openSettings() {
@@ -87,8 +65,9 @@
 				</div>
 			</header>
 		</div>
-		<div>
-			<p>Something here</p>
+		<div class="content prose">
+			<!-- <p>Something here</p> -->
+			<JsonView json={appState} />
 		</div>
 	{/if}
 </main>
@@ -112,9 +91,16 @@
 		--accent-color: #e0e0e0;
 	}
 
-	main {
+	.content {
+		padding: 1.5rem;
+		max-width: 1200px;
+		margin: 0 auto;
 		width: 100%;
-		height: 100%;
+	}
+
+	main {
+		/* width: 100%;
+		height: 100%; */
 		display: flex;
 		flex-direction: column;
 		background-color: var(--bg-primary);
@@ -208,8 +194,8 @@
 	}
 
 	.main-container {
-		width: 100%;
-		height: 100%;
+		/* width: 100%;
+		height: 100%; */
 		display: flex;
 		flex-direction: column;
 	}
