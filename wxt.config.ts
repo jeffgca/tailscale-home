@@ -1,5 +1,5 @@
 import { defineConfig } from 'wxt';
-// import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
 
 // WEB_RTC
@@ -14,6 +14,15 @@ export default defineConfig({
 		action: {
 			default_title: 'Open Tailscale Home',
 			// No default_popup - clicking the button will be handled by the background script
+		},
+	},
+	svelte: {
+		vite: {
+			compilerOptions: {
+				experimental: {
+					async: true,
+				},
+			},
 		},
 	},
 	vite: () => ({
