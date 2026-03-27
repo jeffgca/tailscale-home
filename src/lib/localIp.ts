@@ -8,9 +8,6 @@ export async function getIps() {
 			window.mozRTCPeerConnection;
 
 		if (!RTCPeerConnection) {
-			// RTCPeerConnection not available
-			// resolve([])
-
 			reject(
 				new Error(
 					'WebRTC is not supported in this browser / script / environment',
@@ -33,6 +30,7 @@ export async function getIps() {
 			if (!e.candidate) {
 				// Candidate gathering completed.
 				pc.close();
+				console.log('ips', ips);
 				resolve(ips);
 				return;
 			}
@@ -60,6 +58,7 @@ export async function getIps() {
 			(error) => {
 				console.error('Error creating offer:', error);
 				pc.close();
+				console.log('in createOffer', ips);
 				resolve(ips);
 			},
 		);

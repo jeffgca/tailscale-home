@@ -21,7 +21,7 @@
 
 	$inspect('appState', appState);
 
-	appState = await appService.getState();
+	// appState = await appService.getState();
 
 	onMount(async () => {
 		console.log('onMount');
