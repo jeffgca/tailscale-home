@@ -15,6 +15,7 @@
 		"postinstall": "wxt prepare"
 	},
 	"devDependencies": {
+		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.2.1",
 		"@tsconfig/svelte": "^5.0.7",
 		"@wxt-dev/module-svelte": "^2.0.4",

@@ -4,12 +4,18 @@ export class App {
 	TAILNET_API_AVAILABLE = false;
 	TAILNET_CONNECTED = false;
 	timers = [];
+	#_handlers = [];
+	#_current = {};
 
 	constructor(options?: { debug?: boolean; apiKey?: string }) {
 		console.log('App initialized', options);
-		this.debug = options?.debug || false;
-		this.apiKey = options?.apiKey || null;
-		this.loop = null;
+
+		this.#_current.debug = options?.debug || false;
+		this.#_current.apiKey = options?.apiKey || null;
+		this.#_current.loop = null;
+		this.#_current.localIps = options?.localIps || [];
+		this.#_current.devices = [];
+		this.#_current.services = [];
 	}
 
 	async initialize() {
@@ -19,26 +25,35 @@ export class App {
 		// console.log('App initialization finished')
 		const result = await checkBrowserConnectivity();
 
-		console.log('result', result);
+		console.log('checkBrowserConnectivity', result);
 
-		this.TAILNET_API_AVAILABLE = result.isConnected;
+		this.TAILNET_API_AVAILABLE = result.ok === true;
 
-		this.client = createTailscaleClient(this.apiKey);
+		this.client = await createTailscaleClient(this.apiKey);
 
 		if (this.TAILNET_API_AVAILABLE) {
-			// this.client
+			this.#_current.magicDnsEnabled = await this.client.magicDnsSetting();
+
+			this.#_current.devices = await this.client.listDevices();
+			this.#_current.services = await this.client.listServices();
 		} else {
 			console.warn('Tailnet API is not available in this browser');
 		}
 	}
 
+	update(object) {
+		let _current = this.getState();
+		this.#_current = { ..._current, ...object };
+
+		this.#_handlers.forEach((handler) => handler(this.getState()));
+	}
+
 	getState() {
-		return {
-			TAILNET_API_AVAILABLE: this.TAILNET_API_AVAILABLE,
-			TAILNET_CONNECTED: this.TAILNET_CONNECTED,
-			debug: this.debug,
-			apiKey: this.apiKey,
-			timers: this.timers,
-		};
+		return this.#_current;
+	}
+
+	onUpdate(handler) {
+		// This method can be called to trigger any updates needed when the state changes
+		this.#_handlers.push(handler);
 	}
 }

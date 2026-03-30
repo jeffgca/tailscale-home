@@ -13,32 +13,6 @@ export default defineBackground(() => {
 
 	let localIps = [];
 
-	setupOffscreenDocument('/offscreen.html')
-		.then((result) => {
-			console.log('Offscreen document setup result:', result);
-			// initial value of local ips
-			browser.runtime.onMessage.addListener((message) => {
-				if (message.type === 'LOCAL_IPS') {
-					console.log('Received local IPs from offscreen:', message.ips);
-					localIps = message.ips;
-				}
-			});
-
-			browser.runtime
-				.sendMessage({ type: 'GET_LOCAL_IPS' })
-				.then(() => {
-					console.log('Requested local IPs from offscreen, response:');
-					// localIps = response;
-					// console.log('localips', localIps);
-				})
-				.catch((error) => {
-					console.error('Error getting local IPs:', error);
-				});
-		})
-		.catch((error) => {
-			console.error('Error setting up offscreen document:', error);
-		});
-
 	// define storage items
 	const tailscaleApiKey = storage.defineItem<string>('local:tailscaleApiKey', {
 		defaultValue: '',
@@ -64,6 +38,62 @@ export default defineBackground(() => {
 		},
 	);
 
+	// Initialize the app
+	let app = null;
+
+	Promise.all([
+		tailscaleApiKey.getValue(),
+		tailnetCheckIntervalSeconds.getValue(),
+		deviceProbeIntervalSeconds.getValue(),
+	]).then(([apiKey, tailnetCheckInterval, deviceProbeInterval]) => {
+		console.log('XXX', apiKey, tailnetCheckInterval, deviceProbeInterval);
+
+		app = new App({
+			debug: IS_FIREFOX,
+			apiKey,
+			localIps,
+			tailnetCheckInterval,
+			deviceProbeInterval,
+		});
+
+		app.initialize().then(() => {
+			app.onUpdate((state) => {
+				console.log('App state updated:', state);
+				browser.runtime.sendMessage({
+					type: 'APP_STATE_UPDATE',
+					state,
+				});
+			});
+			registerService(APP_KEY, app);
+		});
+	});
+
+	setupOffscreenDocument('/offscreen.html')
+		.then((result) => {
+			console.log('Offscreen document setup result:', result);
+			// initial value of local ips
+			browser.runtime.onMessage.addListener((message) => {
+				if (message.type === 'LOCAL_IPS') {
+					console.log('Received local IPs from offscreen:', message.ips);
+					app.update({ localIps: message.ips });
+				}
+			});
+
+			browser.runtime
+				.sendMessage({ type: 'GET_LOCAL_IPS' })
+				.then(() => {
+					console.log('Requested local IPs from offscreen, response:');
+					// localIps = response;
+					// console.log('localips', localIps);
+				})
+				.catch((error) => {
+					console.error('Error getting local IPs:', error);
+				});
+		})
+		.catch((error) => {
+			console.error('Error setting up offscreen document:', error);
+		});
+
 	/**
 	 * browser action click handler to open or focus the extension's main page (tab.html)
 	 */
@@ -86,50 +116,4 @@ export default defineBackground(() => {
 			});
 		}
 	});
-
-	// Initialize the app
-
-	// (async () => {
-	// 	apiKey = await tailscaleApiKey.getValue();
-	// 	const app = new App({ debug: IS_FIREFOX, apiKey: apiKey });
-
-	// 	// console.log('apiKey', apiKey)
-
-	// 	await app.initialize();
-
-	// 	registerService(APP_KEY, app);
-	// })();
-
-	Promise.all([
-		tailscaleApiKey.getValue(),
-		tailnetCheckIntervalSeconds.getValue(),
-		deviceProbeIntervalSeconds.getValue(),
-	]).then(([apiKey, tailnetCheckInterval, deviceProbeInterval]) => {
-		console.log('XXX', apiKey, tailnetCheckInterval, deviceProbeInterval);
-
-		const app = new App({
-			debug: IS_FIREFOX,
-			apiKey,
-			localIps,
-			tailnetCheckInterval,
-			deviceProbeInterval,
-		});
-
-		app.initialize().then(() => {
-			registerService(APP_KEY, app);
-		});
-	});
-
-	// tailscaleApiKey.getValue().then(async (apiKey) => {
-	// 	// api
-
-	// 	let timers = {
-	// 		tailnetCheckInterval: await tailnetCheckIntervalSeconds.getValue(),
-	// 		deviceProbeInterval: await deviceProbeIntervalSeconds.getValue(),
-	// 	};
-
-	// 	console.log('XXX', apiKey, timers);
-	// });
-
-	// console.log('apiKey', apiKey)
 });

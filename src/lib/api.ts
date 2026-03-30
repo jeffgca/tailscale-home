@@ -1,6 +1,6 @@
-import { tailscaleApiKey, tailscaleTailnet } from './storage'
+import { tailscaleApiKey, tailscaleTailnet } from './storage';
 
-const TAILSCALE_API_BASE = 'https://api.tailscale.com/api/v2'
+const TAILSCALE_API_BASE = 'https://api.tailscale.com/api/v2';
 
 /**
  * Network connectivity status
@@ -36,68 +36,81 @@ export enum ConnectivityStatus {
  * Connectivity check result
  */
 export interface ConnectivityCheckResult {
-	status: ConnectivityStatus
-	message: string
-	isConnected: boolean
+	status: ConnectivityStatus;
+	message: string;
+	isConnected: boolean;
 }
 
 /**
  * Tailscale Device type
  */
 export interface Device {
-	id: string
-	nodeId: string
-	user: string
-	name: string
-	hostname: string
-	clientVersion: string
-	updateAvailable: boolean
-	os: string
-	created: string
-	connectedToControl: boolean
-	lastSeen: string
-	keyExpiryDisabled: boolean
-	expires: string
-	authorized: boolean
-	isExternal: boolean
-	addresses: string[]
-	tags?: string[]
-	distro?: {
-		name: string
-		version: string
-		codeName: string
-	}
-	[key: string]: any
+	id: string;
+	nodeId: string;
+	user: string;
+	name: string;
+	hostname: string;
+	clientVersion: string;
+	updateAvailable: boolean;
+	os: string;
+	created: string;
+	connectedToControl: boolean;
+	lastSeen: string;
+	keyExpiryDisabled: boolean;
+	expires: string;
+	authorized: boolean;
+	isExternal: boolean;
+	addresses: string[];
+	tags?: string[];
+	[key: string]: any;
 }
 
 /**
  * Tailscale Service type
  */
 export interface Service {
-	name: string
-	addrs: string[]
-	comment?: string
-	ports: string[]
-	tags?: string[]
+	name: string;
+	addrs: string[];
+	comment?: string;
+	ports: string[];
+	tags?: string[];
 }
 
 /**
  * Validates that an API key has the correct format
  */
 export function isValidApiKeyFormat(key: string): boolean {
-	return key.startsWith('tskey-api-')
+	return key.startsWith('tskey-api-');
 }
 
 /**
  * Tailscale API client
  */
 export class TailscaleAPI {
-	private apiKey: string
-	private tailnet: string
+	private apiKey: string;
+	private tailnet: string;
 
 	constructor(apiKey: string, tailnet: string = '-') {
-		this.apiKey = apiKey
-		this.tailnet = tailnet
+		this.apiKey = apiKey;
+		this.tailnet = tailnet;
+		this.magicDnsEnabled = false;
+		this.status = {};
+		this.magicDnsDomain = null;
+	}
+
+	async initialize() {
+		this.magicDnsEnabled = await this.magicDnsSetting();
+		this.status = await this.checkConnectivity();
+	}
+
+	async magicDnsSetting() {
+		let result = await this.request<{ magicDns: boolean }>(
+			`/tailnet/${this.tailnet}/dns/configuration`,
+		);
+
+		console.log('magicDnsSetting result', result.preferences.magicDNS);
+
+		return result.preferences.magicDNS || false;
 	}
 
 	/**
@@ -107,7 +120,7 @@ export class TailscaleAPI {
 		endpoint: string,
 		options: RequestInit = {},
 	): Promise<T> {
-		const url = `${TAILSCALE_API_BASE}${endpoint}`
+		const url = `${TAILSCALE_API_BASE}${endpoint}`;
 
 		const response = await fetch(url, {
 			...options,
@@ -116,14 +129,14 @@ export class TailscaleAPI {
 				'Content-Type': 'application/json',
 				...options.headers,
 			},
-		})
+		});
 
 		if (!response.ok) {
-			const errorText = await response.text()
-			throw new Error(`Tailscale API error (${response.status}): ${errorText}`)
+			const errorText = await response.text();
+			throw new Error(`Tailscale API error (${response.status}): ${errorText}`);
 		}
 
-		return response.json()
+		return response.json();
 	}
 
 	/**
@@ -132,20 +145,71 @@ export class TailscaleAPI {
 	async listDevices(fields: 'all' | 'default' = 'default') {
 		let devices = await this.request<{ devices: Device[] }>(
 			`/tailnet/${this.tailnet}/devices?fields=${fields}`,
-		)
+		);
 
-		console.log('devices', devices)
+		let _return = devices?.devices.map((device) => {
+			return {
+				address: device.addresses[0],
+				name: device.name,
+				hostname: device.hostname,
+				os: device.os,
+				connected: device.connectedToControl,
+				lastSeen: device.lastSeen,
+				tags: device.tags,
+				version: device.clientVersion,
+				updateAvailable: device.updateAvailable,
+			};
+		});
 
-		return devices
+		return _return;
+	}
+
+	_getServiceUrl(service) {
+		console.log(
+			'_getServiceUrl',
+			this.magicDnsEnabled === true,
+			this.magicDnsDomain,
+		);
+		if (this.magicDnsEnabled === true && this.magicDnsDomain) {
+			let _svcSubdomain = service.name.split(':')[1];
+
+			let _port = service.ports[0].split(':')[1],
+				scheme = 'http';
+
+			if (_port === '443') {
+				scheme = 'https';
+			}
+
+			return `${scheme}://${_svcSubdomain}.${this.magicDnsDomain}`;
+		} else {
+			return `http://${service.addrs[0]}`;
+		}
 	}
 
 	/**
 	 * List all services in the tailnet
 	 */
 	async listServices() {
-		return this.request<{ vipServices: Service[] }>(
+		let _services = await this.request<{ vipServices: Service[] }>(
 			`/tailnet/${this.tailnet}/services`,
-		)
+		);
+
+		console.log('listServices', this.magicDnsDomain, _services);
+
+		let _return = _services.vipServices.map((service) => {
+			return {
+				name: service.name,
+				uri: this._getServiceUrl(service),
+				addresses: service.addrs,
+				ports: service.ports,
+				tags: service.tags,
+				comment: service.comment,
+			};
+		});
+
+		console.log('XXX services', _return);
+
+		return _return;
 	}
 
 	/**
@@ -153,11 +217,11 @@ export class TailscaleAPI {
 	 */
 	async testConnection(): Promise<boolean> {
 		try {
-			await this.listDevices('default')
-			return true
+			await this.listDevices('default');
+			return true;
 		} catch (error) {
-			console.error('Tailscale API connection test failed:', error)
-			return false
+			console.error('Tailscale API connection test failed:', error);
+			return false;
 		}
 	}
 
@@ -166,14 +230,28 @@ export class TailscaleAPI {
 	 */
 	async checkConnectivity(): Promise<ConnectivityCheckResult> {
 		try {
-			await this.listDevices('default')
+			let devices = await this.listDevices('default');
+
+			// grab and tuck away the MagicDNS subdomain for later use in constructing service URLs
+			if (devices.length > 0) {
+				const firstDevice = devices[0];
+				const subdomain = firstDevice.name;
+				console.log('subdomain', subdomain);
+
+				if (subdomain.endsWith('.ts.net')) {
+					let magicDnsDomain = subdomain.split('.').slice(1).join('.');
+					//  pieces.slice(1).join('.');
+					this.magicDnsDomain = magicDnsDomain;
+				}
+			}
+
 			return {
 				status: ConnectivityStatus.Connected,
 				message: 'Successfully connected to Tailscale API',
 				isConnected: true,
-			}
+			};
 		} catch (error) {
-			return this.analyzeError(error)
+			return this.analyzeError(error);
 		}
 	}
 
@@ -181,7 +259,7 @@ export class TailscaleAPI {
 	 * Analyze error and return appropriate connectivity status
 	 */
 	private analyzeError(error: unknown): ConnectivityCheckResult {
-		const errorMessage = error instanceof Error ? error.message : String(error)
+		const errorMessage = error instanceof Error ? error.message : String(error);
 
 		// Network/DNS errors
 		if (
@@ -194,7 +272,7 @@ export class TailscaleAPI {
 				message:
 					'Network error: Unable to reach api.tailscale.com. Check your internet connection or network settings.',
 				isConnected: false,
-			}
+			};
 		}
 
 		// Authentication errors
@@ -204,7 +282,7 @@ export class TailscaleAPI {
 				message:
 					'Authentication failed: Your API key may be invalid or expired. Please check your settings.',
 				isConnected: false,
-			}
+			};
 		}
 
 		// API errors (but successfully reached the API)
@@ -213,7 +291,7 @@ export class TailscaleAPI {
 				status: ConnectivityStatus.ApiError,
 				message: `API Error: ${errorMessage}`,
 				isConnected: false,
-			}
+			};
 		}
 
 		// Unknown error
@@ -221,7 +299,7 @@ export class TailscaleAPI {
 			status: ConnectivityStatus.Unknown,
 			message: `Unknown error: ${errorMessage}`,
 			isConnected: false,
-		}
+		};
 	}
 }
 
@@ -229,14 +307,16 @@ export class TailscaleAPI {
  * Create a Tailscale API client from stored credentials
  */
 export async function createTailscaleClient(): Promise<TailscaleAPI | null> {
-	const apiKey = await tailscaleApiKey.getValue()
-	const tailnet = await tailscaleTailnet.getValue()
+	const apiKey = await tailscaleApiKey.getValue();
+	const tailnet = await tailscaleTailnet.getValue();
 
 	if (!apiKey || !isValidApiKeyFormat(apiKey)) {
-		return null
+		return null;
 	}
 
-	return new TailscaleAPI(apiKey, tailnet)
+	let client = new TailscaleAPI(apiKey, tailnet);
+	await client.initialize();
+	return client;
 }
 
 /**
@@ -244,7 +324,7 @@ export async function createTailscaleClient(): Promise<TailscaleAPI | null> {
  * This performs a detailed connectivity check and returns status information
  */
 export async function checkBrowserConnectivity(): Promise<ConnectivityCheckResult> {
-	const apiKey = await tailscaleApiKey.getValue()
+	const apiKey = await tailscaleApiKey.getValue();
 
 	if (!apiKey) {
 		return {
@@ -252,7 +332,7 @@ export async function checkBrowserConnectivity(): Promise<ConnectivityCheckResul
 			message:
 				'API key not configured. Please configure your Tailscale API key in settings.',
 			isConnected: false,
-		}
+		};
 	}
 
 	if (!isValidApiKeyFormat(apiKey)) {
@@ -261,9 +341,17 @@ export async function checkBrowserConnectivity(): Promise<ConnectivityCheckResul
 			message:
 				"Invalid API key format. API keys should start with 'tskey-api-'.",
 			isConnected: false,
-		}
+		};
 	}
 
-	const client = new TailscaleAPI(apiKey, await tailscaleTailnet.getValue())
-	return client.checkConnectivity()
+	let result = await fetch(`${TAILSCALE_API_BASE}/tailnet/-/devices`, {
+		headers: {
+			Authorization: `Bearer ${apiKey}`,
+			'Content-Type': 'application/json',
+		},
+	});
+
+	console.log('XXX connectivity check response', result);
+
+	return result;
 }

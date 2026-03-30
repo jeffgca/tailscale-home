@@ -7,24 +7,37 @@
 
 	import { createProxyService } from '@webext-core/proxy-service';
 	import { APP_KEY } from '../background/proxy_keys';
-	import { setContext } from 'svelte';
+	import Services from '@/lib/Services.svelte';
+	import Devices from '@/lib/Devices.svelte';
+
+	interface AppState {
+		apiKey?: string;
+		services?: any[];
+		[key: string]: any;
+	}
 
 	// 5. Get a proxy of your service
 	const appService = createProxyService(APP_KEY);
+	let appState = $state<AppState>({});
 
-	let apiKeyConfigured = $derived((state: { apiKey: any }) => {
-		return !!state.apiKey;
+	browser.runtime.onMessage.addListener((message) => {
+		if (message.type === 'APP_STATE_UPDATE') {
+			console.log('Received app state update:', message.state);
+			appState = message.state;
+		}
 	});
 
-	let appState = $state({});
-	// let result2 = $state({});
+	let apiKeyConfigured = $derived(!!appState.apiKey);
 
 	$inspect('appState', appState);
 
-	// appState = await appService.getState();
-
 	onMount(async () => {
-		console.log('onMount');
+		console.log('in onMount');
+		appService.getState().then((state) => {
+			console.log('Received state from background:', state);
+			appState = state;
+			// loading = false;
+		});
 	});
 
 	function openSettings() {
@@ -33,17 +46,17 @@
 </script>
 
 <main>
+	<header class="main-header">
+		<div class="header-content prose">
+			<h1>Tailscale Home</h1>
+		</div>
+	</header>
 	{#if loading}
 		<div class="container loading-state">
 			<p>Loading...</p>
 		</div>
 	{:else if !apiKeyConfigured}
 		<div class="container welcome-state">
-			<header>
-				<h1>Tailscale Home</h1>
-				<p class="subtitle">Browser extension</p>
-			</header>
-
 			<div class="welcome-content">
 				<h2>Configuration Required</h2>
 				<p>Get started by configuring your Tailscale API key.</p>
@@ -59,16 +72,44 @@
 		</div>
 	{:else}
 		<div class="main-container">
-			<header class="main-header">
-				<div class="header-content prose">
-					<h1>Tailscale Home</h1>
+			<div class="content prose">
+				<!-- <h2>Welcome to Tailscale Home</h2> -->
+				<p>
+					This is a Svelte-based browser extension that connects to the
+					Tailscale API to provide insights and management capabilities for your
+					tailnet.
+				</p>
+
+				<div class="tabs tabs-border">
+					<input
+						type="radio"
+						name="my_tabs_2"
+						class="tab"
+						aria-label="Services"
+						checked={true}
+					/>
+					<div class="tab-content border-base-300 bg-base-100 p-10">
+						<Services services={appState?.services} />
+					</div>
+
+					<input
+						type="radio"
+						name="my_tabs_2"
+						class="tab"
+						aria-label="Devices"
+					/>
+					<div class="tab-content border-base-300 bg-base-100 p-10">
+						<Devices devices={appState?.devices} />
+					</div>
 				</div>
-			</header>
+			</div>
 		</div>
-		<div class="content prose">
-			<!-- <p>Something here</p> -->
-			<JsonView json={appState} />
-		</div>
+		<details class="collapse bg-base-100 border-base-300 border">
+			<summary class="collapse-title font-semibold">Debug Info</summary>
+			<div class="collapse-content text-sm">
+				<JsonView json={appState} />
+			</div>
+		</details>
 	{/if}
 </main>
 
@@ -129,12 +170,6 @@
 	h1 {
 		font-size: 1.8rem;
 		margin: 0 0 0.25rem 0;
-	}
-
-	.subtitle {
-		font-size: 0.9rem;
-		margin: 0;
-		opacity: 0.7;
 	}
 
 	.welcome-content {
