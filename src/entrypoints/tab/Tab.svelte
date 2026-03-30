@@ -44,7 +44,7 @@
 				console.log('XXX appState', appState);
 
 				appState.devices.forEach(
-					(device: { address: any; isCurrent: boolean }, i) => {
+					(device: { address: any; isCurrent: boolean }, i: number) => {
 						if (appState.localIps.includes(device.address)) {
 							appState.devices[i].isCurrent = true;
 							// console.log('XXX', appState.currentDevice);
