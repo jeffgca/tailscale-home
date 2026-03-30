@@ -74,21 +74,14 @@ export default defineBackground(() => {
 			// initial value of local ips
 			browser.runtime.onMessage.addListener((message) => {
 				if (message.type === 'LOCAL_IPS') {
-					console.log('Received local IPs from offscreen:', message.ips);
+					// console.log('Received local IPs from offscreen:', message.ips);
 					app.update({ localIps: message.ips });
 				}
 			});
 
-			browser.runtime
-				.sendMessage({ type: 'GET_LOCAL_IPS' })
-				.then(() => {
-					console.log('Requested local IPs from offscreen, response:');
-					// localIps = response;
-					// console.log('localips', localIps);
-				})
-				.catch((error) => {
-					console.error('Error getting local IPs:', error);
-				});
+			browser.runtime.sendMessage({ type: 'GET_LOCAL_IPS' }).catch((error) => {
+				console.error('Error getting local IPs:', error);
+			});
 		})
 		.catch((error) => {
 			console.error('Error setting up offscreen document:', error);

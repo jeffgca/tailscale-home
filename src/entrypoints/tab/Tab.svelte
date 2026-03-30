@@ -37,6 +37,24 @@
 			console.log('Received state from background:', state);
 			appState = state;
 			// loading = false;
+
+			if (appState?.localIps.length > 0 && appState?.devices?.length > 0) {
+				// loading = false;
+
+				console.log('XXX appState', appState);
+
+				appState.devices.forEach(
+					(device: { address: any; isCurrent: boolean }, i) => {
+						if (appState.localIps.includes(device.address)) {
+							appState.devices[i].isCurrent = true;
+							// console.log('XXX', appState.currentDevice);
+							return;
+						} else {
+							device.isCurrent = false;
+						}
+					},
+				);
+			}
 		});
 	});
 
@@ -99,7 +117,10 @@
 						aria-label="Devices"
 					/>
 					<div class="tab-content border-base-300 bg-base-100 p-10">
-						<Devices devices={appState?.devices} />
+						<Devices
+							devices={appState?.devices}
+							currentDevice={appState?.currentDevice}
+						/>
 					</div>
 				</div>
 			</div>

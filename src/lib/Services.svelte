@@ -1,6 +1,4 @@
 <script>
-	// import { onMount } from 'svelte';
-
 	let { services } = $props();
 </script>
 
@@ -10,6 +8,5 @@
 		<p class="text-sm text-gray-400">
 			URL: <a href={service.uri}>{service.uri}</a>
 		</p>
-		<!-- <p></p> -->
 	</div>
 {/each}
