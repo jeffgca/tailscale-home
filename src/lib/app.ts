@@ -6,6 +6,7 @@ export class App {
 	timers = [];
 	#_handlers = [];
 	#_current = {};
+	client = null;
 
 	constructor(options?: { debug?: boolean; apiKey?: string }) {
 		console.log('App initialized', options);
@@ -16,6 +17,8 @@ export class App {
 		this.#_current.localIps = options?.localIps || [];
 		this.#_current.devices = [];
 		this.#_current.services = [];
+		this.#_current.status = 'disconnected';
+		this.#_current.apiStatus = 'unknown';
 	}
 
 	async initialize() {
@@ -25,13 +28,11 @@ export class App {
 		// console.log('App initialization finished')
 		const result = await checkBrowserConnectivity();
 
-		console.log('checkBrowserConnectivity', result);
-
-		this.TAILNET_API_AVAILABLE = result.ok === true;
+		this.#_current.apiStatus = result.ok;
 
 		this.client = await createTailscaleClient(this.apiKey);
 
-		if (this.TAILNET_API_AVAILABLE) {
+		if (this.#_current.apiStatus) {
 			this.#_current.magicDnsEnabled = await this.client.magicDnsSetting();
 
 			this.#_current.devices = await this.client.listDevices();
@@ -41,10 +42,46 @@ export class App {
 		}
 	}
 
+	async updateDevicesAndServices() {
+		if (!this.client) {
+			console.warn('Tailscale client not initialized');
+			return;
+		}
+
+		let _devices = await this.client.listDevices();
+		let _services = await this.client.listServices();
+
+		this.update({
+			devices: this.#_current.devices,
+			services: this.#_current.services,
+		});
+	}
+
+	setCurrentDevice() {
+		if (!this.#_current.localIps || this.#_current.localIps.length === 0) {
+			return;
+		}
+
+		let devices = this.#_current.devices || [];
+
+		this.#_current.status = 'disconnected';
+
+		this.#_current.devices.forEach((device, i) => {
+			device.isCurrent = this.#_current.localIps.includes(device.address);
+
+			if (device.isCurrent) {
+				// if any device matches local IPs, we consider the tailnet to be connected
+				this.#_current.status = 'connected';
+			}
+
+			this.#_current.devices[i] = device;
+		});
+	}
+
 	update(object) {
+		this.setCurrentDevice();
 		let _current = this.getState();
 		this.#_current = { ..._current, ...object };
-
 		this.#_handlers.forEach((handler) => handler(this.getState()));
 	}
 

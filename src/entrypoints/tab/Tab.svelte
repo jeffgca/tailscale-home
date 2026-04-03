@@ -9,6 +9,7 @@
 	import { APP_KEY } from '../background/proxy_keys';
 	import Services from '@/lib/Services.svelte';
 	import Devices from '@/lib/Devices.svelte';
+	import Status from '@/lib/Status.svelte';
 
 	interface AppState {
 		apiKey?: string;
@@ -16,7 +17,6 @@
 		[key: string]: any;
 	}
 
-	// 5. Get a proxy of your service
 	const appService = createProxyService(APP_KEY);
 	let appState = $state<AppState>({});
 
@@ -32,29 +32,13 @@
 	$inspect('appState', appState);
 
 	onMount(async () => {
-		console.log('in onMount');
+		// console.log('in onMount');
 		appService.getState().then((state) => {
-			console.log('Received state from background:', state);
+			// console.log('XXX Received state from background:', state);
 			appState = state;
 			// loading = false;
 
-			if (appState?.localIps.length > 0 && appState?.devices?.length > 0) {
-				// loading = false;
-
-				console.log('XXX appState', appState);
-
-				appState.devices.forEach(
-					(device: { address: any; isCurrent: boolean }, i: number) => {
-						if (appState.localIps.includes(device.address)) {
-							appState.devices[i].isCurrent = true;
-							// console.log('XXX', appState.currentDevice);
-							return;
-						} else {
-							device.isCurrent = false;
-						}
-					},
-				);
-			}
+			console.log('appState.status', appState.status);
 		});
 	});
 
@@ -64,10 +48,11 @@
 </script>
 
 <main>
-	<header class="main-header">
+	<header class="main-header columns-2">
 		<div class="header-content prose">
 			<h1>Tailscale Home</h1>
 		</div>
+		<Status status={appState.status} apiStatus={appState.apiStatus} />
 	</header>
 	{#if loading}
 		<div class="container loading-state">

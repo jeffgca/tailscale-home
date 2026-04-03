@@ -3,20 +3,22 @@
 
 	$inspect('Devices.svelte', devices);
 
-	if (devices.find((d) => d.isCurrent)) {
-		console.log(
-			'Found current device:',
-			devices.find((d) => d.isCurrent),
-		);
+	// $derived()
 
-		devices.sort((a, b) => {
-			if (a.isCurrent) return -1;
-			if (b.isCurrent) return 1;
-			return 0;
-		});
-	} else {
-		console.log('No current device found');
-	}
+	let sortedDevices = $derived.by(() => {
+		let _devices = [...devices];
+		if (_devices.find((d) => d.isCurrent)) {
+			_devices.sort((a, b) => {
+				if (a.isCurrent) return -1;
+				if (b.isCurrent) return 1;
+				return 0;
+			});
+		} else {
+			console.log('No current device found');
+		}
+
+		return _devices;
+	});
 
 	const iCons = {
 		linux:
@@ -35,7 +37,7 @@
 	};
 </script>
 
-{#each devices as device}
+{#each sortedDevices as device}
 	<div
 		class="device-card border rounded p-4 mb-4 {device.isCurrent
 			? 'border-accent'

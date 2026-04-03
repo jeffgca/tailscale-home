@@ -6,6 +6,13 @@ const IS_FIREFOX = import.meta.env.BROWSER === 'firefox';
 import { getIps } from '../../lib/localip';
 import { setupOffscreenDocument } from '../../lib/offscreen';
 
+/**
+ * TODO:
+ *
+ * - sv-router for urls -> tabs
+ * - update current device in devices should be pushed from background when tailscale is enabled / disabled
+ */
+
 export default defineBackground(() => {
 	let apiKey = null;
 	let tailnetCheckInterval = null;
@@ -46,7 +53,7 @@ export default defineBackground(() => {
 		tailnetCheckIntervalSeconds.getValue(),
 		deviceProbeIntervalSeconds.getValue(),
 	]).then(([apiKey, tailnetCheckInterval, deviceProbeInterval]) => {
-		console.log('XXX', apiKey, tailnetCheckInterval, deviceProbeInterval);
+		// console.log('XXX', apiKey, tailnetCheckInterval, deviceProbeInterval);
 
 		app = new App({
 			debug: IS_FIREFOX,
@@ -58,19 +65,32 @@ export default defineBackground(() => {
 
 		app.initialize().then(() => {
 			app.onUpdate((state) => {
-				console.log('App state updated:', state);
+				// console.log('App state updated:', state);
 				browser.runtime.sendMessage({
 					type: 'APP_STATE_UPDATE',
 					state,
 				});
 			});
 			registerService(APP_KEY, app);
+
+			setInterval(() => {
+				// console.log('deviceProbeInterval');
+			}, deviceProbeInterval);
+
+			setInterval(() => {
+				console.log('tailnetCheckInterval');
+				browser.runtime
+					.sendMessage({ type: 'GET_LOCAL_IPS', target: 'offscreen' })
+					.catch((error) => {
+						console.error('Error getting local IPs:', error);
+					});
+			}, tailnetCheckInterval);
 		});
 	});
 
 	setupOffscreenDocument('/offscreen.html')
 		.then((result) => {
-			console.log('Offscreen document setup result:', result);
+			// console.log('Offscreen document setup result:', result);
 			// initial value of local ips
 			browser.runtime.onMessage.addListener((message) => {
 				if (message.type === 'LOCAL_IPS') {
@@ -79,9 +99,11 @@ export default defineBackground(() => {
 				}
 			});
 
-			browser.runtime.sendMessage({ type: 'GET_LOCAL_IPS' }).catch((error) => {
-				console.error('Error getting local IPs:', error);
-			});
+			browser.runtime
+				.sendMessage({ type: 'GET_LOCAL_IPS', target: 'offscreen' })
+				.catch((error) => {
+					console.error('Error getting local IPs:', error);
+				});
 		})
 		.catch((error) => {
 			console.error('Error setting up offscreen document:', error);
