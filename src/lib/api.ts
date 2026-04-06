@@ -1,6 +1,13 @@
-import { tailscaleApiKey, tailscaleTailnet } from './storage';
+import {
+	getCachedServiceMetadata,
+	setCachedServiceMetadata,
+	tailscaleApiKey,
+	tailscaleTailnet,
+} from './storage';
+import { fetchPageMetadata } from './service';
 
 const TAILSCALE_API_BASE = 'https://api.tailscale.com/api/v2';
+const SERVICE_METADATA_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Network connectivity status
@@ -81,6 +88,38 @@ export interface Service {
  */
 export function isValidApiKeyFormat(key: string): boolean {
 	return key.startsWith('tskey-api-');
+}
+
+/**
+ * Fetch an image URL and return it as a data URI.
+ * Returns false when fetch/conversion fails.
+ */
+async function fetchImageAsDataUri(url: string): Promise<string | false> {
+	try {
+		const response = await fetch(url);
+
+		if (!response.ok) {
+			return false;
+		}
+
+		const blob = await response.blob();
+
+		return await new Promise<string | false>((resolve) => {
+			const reader = new FileReader();
+
+			reader.onloadend = () => {
+				resolve(typeof reader.result === 'string' ? reader.result : false);
+			};
+
+			reader.onerror = () => {
+				resolve(false);
+			};
+
+			reader.readAsDataURL(blob);
+		});
+	} catch {
+		return false;
+	}
 }
 
 /**
@@ -189,27 +228,68 @@ export class TailscaleAPI {
 	/**
 	 * List all services in the tailnet
 	 */
-	async listServices() {
+	async listServices(forceRefreshMetadata: boolean = false) {
 		let _services = await this.request<{ vipServices: Service[] }>(
 			`/tailnet/${this.tailnet}/services`,
 		);
 
-		console.log('listServices', this.magicDnsDomain, _services);
+		// console.log('listServices', this.magicDnsDomain, _services);
 
-		let _return = _services.vipServices.map((service) => {
-			return {
-				name: service.name,
-				uri: this._getServiceUrl(service),
-				addresses: service.addrs,
-				ports: service.ports,
-				tags: service.tags,
-				comment: service.comment,
-			};
-		});
+		let _return = await Promise.all(
+			_services.vipServices.map(async (service) => {
+				let _uri = this._getServiceUrl(service);
+				let metadata = null;
+				let cachedMetadata = await getCachedServiceMetadata(_uri);
+
+				const cacheIsFresh =
+					!forceRefreshMetadata &&
+					cachedMetadata !== null &&
+					Date.now() - new Date(cachedMetadata.cachedAt).getTime() <=
+						SERVICE_METADATA_CACHE_MAX_AGE_MS;
+
+				if (cacheIsFresh && cachedMetadata) {
+					metadata = cachedMetadata.metadata;
+				} else {
+					try {
+						metadata = await fetchPageMetadata(_uri);
+						console.log('XXX metadata', metadata);
+						await setCachedServiceMetadata(_uri, metadata);
+					} catch (error) {
+						console.warn(`Failed to fetch service metadata for ${_uri}`, error);
+
+						if (cachedMetadata) {
+							metadata = cachedMetadata.metadata;
+						}
+					}
+				}
+
+				return {
+					name: service.name,
+					uri: _uri,
+					addresses: service.addrs,
+					ports: service.ports,
+					tags: service.tags,
+					comment: service.comment,
+					metadata,
+					// favicon: favicon,
+				};
+			}),
+		);
 
 		console.log('XXX services', _return);
 
 		return _return;
+	}
+
+	async getFavIcon(service) {
+		let url = new URL(service.uri);
+		let result = await fetchImageAsDataUri(`${url.origin}/favicon.ico`);
+
+		if (result === false) {
+			return null;
+		}
+
+		return result;
 	}
 
 	/**

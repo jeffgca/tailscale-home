@@ -20,8 +20,8 @@ export async function setupOffscreenDocument(path) {
 	} else {
 		creating = chrome.offscreen.createDocument({
 			url: path,
-			reasons: ['WEB_RTC'],
-			justification: 'get local IP addresses using WebRTC',
+			reasons: ['WEB_RTC', 'DOM_PARSER'],
+			justification: 'get local IP addresses and parse service metadata HTML',
 		});
 		await creating;
 		creating = null;

@@ -8,7 +8,14 @@ export class App {
 	#_current = {};
 	client = null;
 
-	constructor(options?: { debug?: boolean; apiKey?: string }) {
+	constructor(options?: {
+		debug?: boolean;
+		apiKey?: string;
+		cache?: string[];
+		localIps?: string[];
+		tailnetCheckInterval?: number;
+		deviceProbeInterval?: number;
+	}) {
 		console.log('App initialized', options);
 
 		this.#_current.debug = options?.debug || false;
@@ -34,7 +41,6 @@ export class App {
 
 		if (this.#_current.apiStatus) {
 			this.#_current.magicDnsEnabled = await this.client.magicDnsSetting();
-
 			this.#_current.devices = await this.client.listDevices();
 			this.#_current.services = await this.client.listServices();
 		} else {

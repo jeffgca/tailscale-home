@@ -43,29 +43,60 @@
 			? 'border-accent'
 			: ''}"
 	>
-		{@html iCons[device.os] || iCons['unknown']}
-		<h3 class="text-lg font-semibold">
-			{device.hostname}
-			{device.isCurrent ? ' (This Device)' : ''}
-		</h3>
+		<div class="device-header flex items-center mb-2 space-x-3">
+			{@html iCons[device.os] || iCons['unknown']}
+			<h3 class="text-lg font-semibold">
+				{device.hostname}
+				{device.isCurrent ? ' (This Device)' : ''}
+			</h3>
+		</div>
 
 		<ul>
-			<li>Hostname: {device.name} / IP: {device.address}</li>
+			<li>
+				Hostname: <a class="device-link" href={device.name}>{device.name}</a> /
+				IP: {device.address}
+			</li>
 			<li>OS: {device.os}</li>
-			<li>Connected: {device.connected ? iCons['yes'] : iCons['no']}</li>
+			<li>
+				Connected: <span class="emoji-icon"
+					>{device.connected ? iCons['yes'] : iCons['no']}</span
+				>
+			</li>
 		</ul>
 	</div>
 {/each}
 
 <style>
+	.emoji-icon {
+		font-size: 0.9rem;
+	}
+
 	.device-card {
 		background-color: var(--bg-secondary);
 		color: var(--text-primary);
 		border-color: var(--border-color);
 	}
 
+	.device-header > h3 {
+		/* border: 1px solid red; */
+		/* color: red; */
+		font-size: 1.7rem;
+		line-height: normal;
+		padding-bottom: 1.5rem;
+		margin: 0;
+		padding: 0;
+	}
+
+	.device-card > ul {
+		margin-top: 0.5rem;
+		margin-left: 0;
+		padding-left: 0;
+		list-style: none;
+	}
+
 	.device-card > ul > li {
-		margin: 0.15rem;
+		margin: 0;
+		padding: 0;
 	}
 
 	.border-accent {

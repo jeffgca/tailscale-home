@@ -34,10 +34,7 @@
 	onMount(async () => {
 		// console.log('in onMount');
 		appService.getState().then((state) => {
-			// console.log('XXX Received state from background:', state);
 			appState = state;
-			// loading = false;
-
 			console.log('appState.status', appState.status);
 		});
 	});
