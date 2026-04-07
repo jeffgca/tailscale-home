@@ -6,6 +6,26 @@ const IS_FIREFOX = import.meta.env.BROWSER === 'firefox';
 import { getIps } from '../../lib/localip';
 import { setupOffscreenDocument } from '../../lib/offscreen';
 
+let iframeHosts = ['home.gibbon-snake.ts.net'];
+
+const RULE = {
+	id: 1,
+	condition: {
+		initiatorDomains: [chrome.runtime.id],
+		requestDomains: iframeHosts,
+		resourceTypes: ['sub_frame'],
+	},
+	action: {
+		type: 'modifyHeaders',
+		responseHeaders: [
+			{ header: 'X-Frame-Options', operation: 'remove' },
+			{ header: 'Frame-Options', operation: 'remove' },
+			// Uncomment the following line to suppress `frame-ancestors` error
+			// {header: 'Content-Security-Policy', operation: 'remove'},
+		],
+	},
+};
+
 /**
  * TODO:
  *
@@ -14,6 +34,12 @@ import { setupOffscreenDocument } from '../../lib/offscreen';
  */
 
 export default defineBackground(() => {
+	// magic voodoo that allegedly helps us load iframes without security problems
+	chrome.declarativeNetRequest.updateDynamicRules({
+		removeRuleIds: [RULE.id],
+		addRules: [RULE],
+	});
+
 	let apiKey = null;
 	let tailnetCheckInterval = null;
 	let deviceProbeInterval = null;
@@ -77,7 +103,7 @@ export default defineBackground(() => {
 				// console.log('deviceProbeInterval');
 			}, deviceProbeInterval);
 
-			setInterval(() => {
+			setTimeout(() => {
 				console.log('tailnetCheckInterval');
 				browser.runtime
 					.sendMessage({ type: 'GET_LOCAL_IPS', target: 'offscreen' })
@@ -86,6 +112,8 @@ export default defineBackground(() => {
 					});
 			}, tailnetCheckInterval);
 		});
+
+		// console.log('services?', app.services);
 	});
 
 	setupOffscreenDocument('/offscreen.html')
@@ -93,9 +121,17 @@ export default defineBackground(() => {
 			// console.log('Offscreen document setup result:', result);
 			// initial value of local ips
 			browser.runtime.onMessage.addListener((message) => {
+				console.log('XXX background message', message.type);
 				if (message.type === 'LOCAL_IPS') {
 					// console.log('Received local IPs from offscreen:', message.ips);
 					app.update({ localIps: message.ips });
+				}
+
+				if (message.type === 'iframe-metadata') {
+					console.log(
+						'XXX Received ping message in background script:',
+						message,
+					);
 				}
 			});
 
@@ -103,6 +139,18 @@ export default defineBackground(() => {
 				.sendMessage({ type: 'GET_LOCAL_IPS', target: 'offscreen' })
 				.catch((error) => {
 					console.error('Error getting local IPs:', error);
+				});
+
+			browser.runtime
+				.sendMessage({
+					type: 'PING',
+					target: 'content-script',
+				})
+				.then((response) => {
+					console.log('got response to ping', response);
+				})
+				.catch((error) => {
+					console.error('Error sending ping message:', error);
 				});
 		})
 		.catch((error) => {

@@ -29,15 +29,28 @@ export interface PageMetadata {
 export async function fetchPageMetadata(url: string): Promise<PageMetadata> {
 	// await setupOffscreenDocument(OFFSCREEN_DOCUMENT_PATH);
 
-	const response = (await browser.runtime.sendMessage({
-		type: 'GET_PAGE_METADATA',
-		target: 'offscreen',
-		url,
-	})) as OffscreenMetadataResponse;
+	// const response = (await browser.runtime.sendMessage({
+	// 	type: 'GET_PAGE_METADATA',
+	// 	target: 'offscreen',
+	// 	url,
+	// })) as OffscreenMetadataResponse;
 
-	if (!response?.ok || !response.metadata) {
-		throw new Error(response?.error ?? `Failed to fetch metadata for ${url}`);
-	}
+	// if (!response?.ok || !response.metadata) {
+	// 	throw new Error(response?.error ?? `Failed to fetch metadata for ${url}`);
+	// }
 
-	return response.metadata;
+	// return response.metadata;
+
+	browser.runtime
+		.sendMessage({
+			type: 'GET_PAGE_METADATA',
+			target: 'content-script',
+		})
+		.then((response) => {
+			console.log('Received page metadata response in service:', response);
+			return response;
+		})
+		.catch((error) => {
+			console.error('Error getting page metadata:', error);
+		});
 }

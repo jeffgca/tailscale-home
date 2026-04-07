@@ -85,24 +85,23 @@
 						type="radio"
 						name="my_tabs_2"
 						class="tab"
-						aria-label="Services"
-						checked={true}
-					/>
-					<div class="tab-content border-base-300 bg-base-100 p-10">
-						<Services services={appState?.services} />
-					</div>
-
-					<input
-						type="radio"
-						name="my_tabs_2"
-						class="tab"
 						aria-label="Devices"
+						checked={true}
 					/>
 					<div class="tab-content border-base-300 bg-base-100 p-10">
 						<Devices
 							devices={appState?.devices}
 							currentDevice={appState?.currentDevice}
 						/>
+					</div>
+					<input
+						type="radio"
+						name="my_tabs_2"
+						class="tab"
+						aria-label="Services"
+					/>
+					<div class="tab-content border-base-300 bg-base-100 p-10">
+						<Services services={appState?.services} />
 					</div>
 				</div>
 			</div>

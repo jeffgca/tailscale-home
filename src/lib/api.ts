@@ -206,30 +206,30 @@ export class TailscaleAPI {
 		let _return = await Promise.all(
 			_services.vipServices.map(async (service) => {
 				let _uri = this._getServiceUrl(service);
-				let metadata = null;
-				let cachedMetadata = await getCachedServiceMetadata(_uri);
+				// let metadata = null;
+				// let cachedMetadata = await getCachedServiceMetadata(_uri);
 
-				const cacheIsFresh =
-					!forceRefreshMetadata &&
-					cachedMetadata !== null &&
-					Date.now() - new Date(cachedMetadata.cachedAt).getTime() <=
-						SERVICE_METADATA_CACHE_MAX_AGE_MS;
+				// const cacheIsFresh =
+				// 	!forceRefreshMetadata &&
+				// 	cachedMetadata !== null &&
+				// 	Date.now() - new Date(cachedMetadata.cachedAt).getTime() <=
+				// 		SERVICE_METADATA_CACHE_MAX_AGE_MS;
 
-				if (cacheIsFresh && cachedMetadata) {
-					metadata = cachedMetadata.metadata;
-				} else {
-					try {
-						metadata = await fetchPageMetadata(_uri);
-						console.log('XXX metadata', metadata);
-						await setCachedServiceMetadata(_uri, metadata);
-					} catch (error) {
-						console.warn(`Failed to fetch service metadata for ${_uri}`, error);
+				// if (cacheIsFresh && cachedMetadata) {
+				// 	metadata = cachedMetadata.metadata;
+				// } else {
+				// 	try {
+				// 		metadata = await fetchPageMetadata(_uri);
+				// 		console.log('XXX metadata', metadata);
+				// 		await setCachedServiceMetadata(_uri, metadata);
+				// 	} catch (error) {
+				// 		console.warn(`Failed to fetch service metadata for ${_uri}`, error);
 
-						if (cachedMetadata) {
-							metadata = cachedMetadata.metadata;
-						}
-					}
-				}
+				// 		if (cachedMetadata) {
+				// 			metadata = cachedMetadata.metadata;
+				// 		}
+				// 	}
+				// }
 
 				return {
 					name: service.name,
@@ -238,7 +238,7 @@ export class TailscaleAPI {
 					ports: service.ports,
 					tags: service.tags,
 					comment: service.comment,
-					metadata,
+					// metadata,
 					// favicon: favicon,
 				};
 			}),
