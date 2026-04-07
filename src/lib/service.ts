@@ -1,4 +1,4 @@
-import { setupOffscreenDocument } from './offscreen';
+// import { setupOffscreenDocument } from './offscreen';
 
 const OFFSCREEN_DOCUMENT_PATH = '/offscreen.html';
 
@@ -27,7 +27,7 @@ export interface PageMetadata {
  * Fetches a web page and parses OpenGraph and Twitter Card metadata from its HTML.
  */
 export async function fetchPageMetadata(url: string): Promise<PageMetadata> {
-	await setupOffscreenDocument(OFFSCREEN_DOCUMENT_PATH);
+	// await setupOffscreenDocument(OFFSCREEN_DOCUMENT_PATH);
 
 	const response = (await browser.runtime.sendMessage({
 		type: 'GET_PAGE_METADATA',

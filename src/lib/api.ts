@@ -91,38 +91,6 @@ export function isValidApiKeyFormat(key: string): boolean {
 }
 
 /**
- * Fetch an image URL and return it as a data URI.
- * Returns false when fetch/conversion fails.
- */
-async function fetchImageAsDataUri(url: string): Promise<string | false> {
-	try {
-		const response = await fetch(url);
-
-		if (!response.ok) {
-			return false;
-		}
-
-		const blob = await response.blob();
-
-		return await new Promise<string | false>((resolve) => {
-			const reader = new FileReader();
-
-			reader.onloadend = () => {
-				resolve(typeof reader.result === 'string' ? reader.result : false);
-			};
-
-			reader.onerror = () => {
-				resolve(false);
-			};
-
-			reader.readAsDataURL(blob);
-		});
-	} catch {
-		return false;
-	}
-}
-
-/**
  * Tailscale API client
  */
 export class TailscaleAPI {
@@ -279,17 +247,6 @@ export class TailscaleAPI {
 		console.log('XXX services', _return);
 
 		return _return;
-	}
-
-	async getFavIcon(service) {
-		let url = new URL(service.uri);
-		let result = await fetchImageAsDataUri(`${url.origin}/favicon.ico`);
-
-		if (result === false) {
-			return null;
-		}
-
-		return result;
 	}
 
 	/**

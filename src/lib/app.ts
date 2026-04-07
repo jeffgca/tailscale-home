@@ -42,7 +42,7 @@ export class App {
 		if (this.#_current.apiStatus) {
 			this.#_current.magicDnsEnabled = await this.client.magicDnsSetting();
 			this.#_current.devices = await this.client.listDevices();
-			this.#_current.services = await this.client.listServices();
+			this.#_current.services = await this.client.listServices(true);
 		} else {
 			console.warn('Tailnet API is not available in this browser');
 		}

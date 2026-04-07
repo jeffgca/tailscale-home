@@ -1,27 +1,8 @@
 // console.log('in the offscreen page script')
 import { getIps } from '../../lib/localip';
 
-async function fetchPageMetadata(url) {
-	const response = await fetch(url, {
-		headers: { Accept: 'text/html' },
-		redirect: 'follow',
-	});
-
-	if (!response.ok) {
-		throw new Error(
-			`Failed to fetch page ${url}: ${response.status} ${response.statusText}`,
-		);
-	}
-
-	const contentType = response.headers.get('content-type') ?? '';
-	if (!contentType.includes('text/html')) {
-		throw new Error(`Expected HTML response, got: ${contentType}`);
-	}
-
-	const html = await response.text();
-	const parser = new DOMParser();
-	const doc = parser.parseFromString(html, 'text/html');
-
+function readMetadataFromDocument(doc, resolvedUrl) {
+	console.log('XXX readMetadataFromDocument', resolvedUrl);
 	const getMeta = (property) => {
 		const el =
 			doc.querySelector(`meta[property="${property}"]`) ??
@@ -30,7 +11,7 @@ async function fetchPageMetadata(url) {
 	};
 
 	return {
-		url: response.url || url,
+		url: resolvedUrl,
 		title: (getMeta('og:title') ?? doc.title) || undefined,
 		description: getMeta('og:description'),
 		image: getMeta('og:image'),
@@ -43,6 +24,72 @@ async function fetchPageMetadata(url) {
 		twitterSite: getMeta('twitter:site'),
 		twitterCreator: getMeta('twitter:creator'),
 	};
+}
+
+function fetchPageMetadata(url, timeoutMs = 15000) {
+	console.log('XXX fetchPageMetadata', fetchPageMetadata);
+	return new Promise((resolve, reject) => {
+		const iframe = document.createElement('iframe');
+
+		console.log('XXX iframe', iframe);
+		let done = false;
+
+		const cleanup = () => {
+			iframe.onload = null;
+			iframe.onerror = null;
+			if (iframe.parentNode) {
+				iframe.parentNode.removeChild(iframe);
+			}
+		};
+
+		const finishWithError = (error) => {
+			if (done) return;
+			done = true;
+			clearTimeout(timeoutId);
+			cleanup();
+			reject(error);
+		};
+
+		const timeoutId = setTimeout(() => {
+			finishWithError(
+				new Error(`Timed out waiting for iframe metadata for ${url}`),
+			);
+		}, timeoutMs);
+
+		iframe.style.display = 'none';
+
+		iframe.onerror = () => {
+			finishWithError(new Error(`Failed to load iframe for ${url}`));
+		};
+
+		iframe.onload = () => {
+			if (done) return;
+
+			try {
+				const doc = iframe.contentDocument;
+				if (!doc) {
+					throw new Error(`Iframe document unavailable for ${url}`);
+				}
+
+				const resolvedUrl = iframe.contentWindow?.location?.href || url;
+				const metadata = readMetadataFromDocument(doc, resolvedUrl);
+
+				done = true;
+				clearTimeout(timeoutId);
+				cleanup();
+				resolve(metadata);
+			} catch (error) {
+				finishWithError(
+					error instanceof Error
+						? error
+						: new Error(`Failed reading iframe metadata for ${url}`),
+				);
+			}
+		};
+
+		document.body.appendChild(iframe);
+		iframe.src = url;
+	});
 }
 
 browser.runtime.onMessage.addListener((message) => {
