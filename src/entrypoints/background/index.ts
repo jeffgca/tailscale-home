@@ -72,14 +72,15 @@ export default defineBackground(() => {
 	);
 
 	// Initialize the app
-	let app = null;
+	let app = null,
+		loop;
 
 	Promise.all([
 		tailscaleApiKey.getValue(),
 		tailnetCheckIntervalSeconds.getValue(),
 		deviceProbeIntervalSeconds.getValue(),
 	]).then(([apiKey, tailnetCheckInterval, deviceProbeInterval]) => {
-		// console.log('XXX', apiKey, tailnetCheckInterval, deviceProbeInterval);
+		clearInterval(loop);
 
 		app = new App({
 			debug: IS_FIREFOX,
@@ -110,18 +111,9 @@ export default defineBackground(() => {
 				console.log('Offscreen document setup');
 				// initial value of local ips
 				browser.runtime.onMessage.addListener((message) => {
-					console.log('XXX background message', message.type);
 					if (message.type === 'LOCAL_IPS') {
 						console.log('Received local IPs from offscreen:', message.ips);
 						app.setLocalIps(message.ips);
-						console.log('ZZZ appState', app.getState());
-
-						setTimeout(() => {
-							console.log('ZZZ appState after timeout', app.getState());
-							app.update({ localIps: message.ips });
-						}, 100);
-
-						// app.setCurrentDevice();
 					}
 
 					if (message.type === 'iframe-metadata') {
@@ -131,6 +123,15 @@ export default defineBackground(() => {
 						);
 					}
 				});
+
+				// set the loop
+				loop = setInterval(() => {
+					browser.runtime
+						.sendMessage({ type: 'GET_LOCAL_IPS', target: 'offscreen' })
+						.catch((error) => {
+							console.error('Error getting local IPs:', error);
+						});
+				}, tailnetCheckInterval);
 
 				browser.runtime
 					.sendMessage({ type: 'GET_LOCAL_IPS', target: 'offscreen' })

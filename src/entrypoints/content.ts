@@ -2,7 +2,6 @@ export default defineContentScript({
 	matches: ['*://*.gibbon-snake.ts.net/*'],
 	allFrames: true,
 	main(ctx) {
-		console.log('XXX in content script main');
 		function readMetadataFromDocument(resolvedUrl) {
 			console.log('content script readMetadataFromDocument', resolvedUrl);
 			const getMeta = (property) => {
