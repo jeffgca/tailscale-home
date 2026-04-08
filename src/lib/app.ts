@@ -24,6 +24,7 @@ export class App {
 		this.#_current.localIps = options?.localIps || [];
 		this.#_current.devices = [];
 		this.#_current.services = [];
+		this.#_current.servicesMetaData = {};
 		this.#_current.status = 'disconnected';
 		this.#_current.apiStatus = 'unknown';
 	}
@@ -106,6 +107,25 @@ export class App {
 	setLocalIps(ips) {
 		this.update({ localIps: ips });
 		this.setCurrentDevice();
+	}
+
+	setSiteMetadata(url, metadata) {
+		console.log('ZZZ setSiteMetadata', url, metadata);
+		let _uri = new URL(url).origin;
+
+		// if (metadata.image.startsWith('./')) {
+		let _imageUrl = new URL(metadata.image, url).href;
+		metadata.image = _imageUrl;
+		console.log('ZZZ resolved image url', _imageUrl);
+		// metadata.image = getFullUrl(metadata.image);
+		// } else {
+		// 	console.log('ZZZ image url does not need resolution', metadata.image);
+		// }
+
+		// console.log('ZZZ', _uri);
+
+		this.#_current.servicesMetaData[_uri] = metadata;
+		this.update();
 	}
 
 	onUpdate(handler) {

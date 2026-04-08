@@ -104,16 +104,18 @@ export default defineBackground(() => {
 			let _state = app.getState();
 			console.log('state', _state);
 
-			let _serviceUrls = _state.services.map((s) => s.uri);
-
 			browser.runtime.onMessage.addListener((message) => {
 				if (message.type === 'service-metadata') {
 					console.log(
 						'Received service-metadata message in background script',
-						message,
+						message.data,
 					);
+
+					app.setSiteMetadata(message.data.url, message.data);
 				}
 			});
+
+			let _serviceUrls = _state.services.map((s) => s.uri);
 
 			browser.runtime
 				.sendMessage({

@@ -17,11 +17,22 @@ export default defineContentScript({
 				return el?.getAttribute('href') ?? undefined;
 			};
 
+			let _image = getMeta('og:image') || getIconUrl();
+
+			function getFullUrl(relative) {
+				try {
+					return new URL(relative, resolvedUrl).href;
+				} catch (error) {
+					console.error('Error resolving URL:', error);
+					return relative; // fallback to the original relative URL
+				}
+			}
+
 			return {
 				url: resolvedUrl,
 				title: (getMeta('og:title') ?? document.title) || undefined,
 				description: getMeta('og:description'),
-				image: getMeta('og:image') || getIconUrl(),
+				image: _image,
 			};
 		}
 
@@ -31,20 +42,27 @@ export default defineContentScript({
 
 		console.log('metadata', metadata);
 
-		browser.runtime.onMessage.addListener((message, sender) => {
-			if (message.type === 'get-service-metadata') {
-				console.log(
-					'Received GET_PAGE_METADATA message in content script',
-					message,
-				);
-				browser.runtime.sendMessage({
-					type: 'service-metadata',
-					data: metadata,
-					source: 'content-script',
-					target: 'background',
-				});
-			}
+		browser.runtime.sendMessage({
+			type: 'service-metadata',
+			data: metadata,
+			source: 'content-script',
+			target: 'background',
 		});
+
+		// browser.runtime.onMessage.addListener((message, sender) => {
+		// 	if (message.type === 'get-service-metadata') {
+		// 		console.log(
+		// 			'Received GET_PAGE_METADATA message in content script',
+		// 			message,
+		// 		);
+		// 		browser.runtime.sendMessage({
+		// 			type: 'service-metadata',
+		// 			data: metadata,
+		// 			source: 'content-script',
+		// 			target: 'background',
+		// 		});
+		// 	}
+		// });
 
 		browser.runtime
 			.sendMessage({

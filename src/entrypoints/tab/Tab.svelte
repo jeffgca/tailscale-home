@@ -87,7 +87,7 @@
 						aria-label="Devices"
 						checked={true}
 					/>
-					<div class="tab-content border-base-300 bg-base-100 p-10">
+					<div class="tab-content bg-base-100 p-10">
 						<Devices
 							devices={appState?.devices}
 							currentDevice={appState?.currentDevice}
@@ -99,8 +99,11 @@
 						class="tab"
 						aria-label="Services"
 					/>
-					<div class="tab-content border-base-300 bg-base-100 p-10">
-						<Services services={appState?.services} />
+					<div class="tab-content bg-base-100 p-10">
+						<Services
+							services={appState?.services}
+							metadata={appState?.servicesMetaData}
+						/>
 					</div>
 				</div>
 			</div>
