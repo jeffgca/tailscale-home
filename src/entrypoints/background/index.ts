@@ -21,7 +21,7 @@ const RULE = {
 			{ header: 'X-Frame-Options', operation: 'remove' },
 			{ header: 'Frame-Options', operation: 'remove' },
 			// Uncomment the following line to suppress `frame-ancestors` error
-			// {header: 'Content-Security-Policy', operation: 'remove'},
+			{ header: 'Content-Security-Policy', operation: 'remove' },
 		],
 	},
 };

@@ -49,7 +49,7 @@
 		<h3 class="text-lg font-semibold">{service.comment} - {service.name}</h3>
 		<img src={service?.metadata?.image} alt="Service Logo" />
 		<p class="text-sm text-gray-400">
-			URL: <a target="_blank" href={service?.metadata?.url}>{service.uri}</a>
+			URL: <a target="_blank" href={service?.uri}>{service.uri}</a>
 		</p>
 	</div>
 {/each}

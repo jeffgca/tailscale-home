@@ -47,7 +47,7 @@ browser.runtime.onMessage.addListener((message) => {
 					iframe.style.display = 'none';
 					iframe.src = value;
 					iframe.onload = () => {
-						console.log(`Iframe for ${key} loaded`);
+						console.log(`Iframe for ${value} loaded`);
 						resolve({ key, url: value });
 					};
 					document.body.appendChild(iframe);

@@ -1,5 +1,5 @@
 export default defineContentScript({
-	matches: ['*://*.gibbon-snake.ts.net/*'],
+	matches: ['*://*.gibbon-snake.ts.net/*', '*://app.plex.tv/*'],
 	allFrames: true,
 	main(ctx) {
 		console.log('content script lodaded', ctx);
@@ -13,7 +13,7 @@ export default defineContentScript({
 			};
 
 			const getIconUrl = () => {
-				const el = document.querySelector(`link[rel~="apple-touch-icon"]`);
+				const el = document.querySelector(`link[rel^="apple-touch-icon"]`);
 				return el?.getAttribute('href') ?? undefined;
 			};
 
@@ -48,45 +48,5 @@ export default defineContentScript({
 			source: 'content-script',
 			target: 'background',
 		});
-
-		// browser.runtime.onMessage.addListener((message, sender) => {
-		// 	if (message.type === 'get-service-metadata') {
-		// 		console.log(
-		// 			'Received GET_PAGE_METADATA message in content script',
-		// 			message,
-		// 		);
-		// 		browser.runtime.sendMessage({
-		// 			type: 'service-metadata',
-		// 			data: metadata,
-		// 			source: 'content-script',
-		// 			target: 'background',
-		// 		});
-		// 	}
-		// });
-
-		browser.runtime
-			.sendMessage({
-				type: 'iframe-metadata',
-				data: metadata,
-				source: 'content-script',
-				tabId: ctx.tabId,
-				frameId: ctx.frameId,
-				url: window.location.href,
-				title: document.title,
-				timestamp: Date.now(),
-				target: 'background',
-			})
-			.then((response) => {
-				console.log('got response to ping', response);
-			})
-			.catch((error) => {
-				console.error('Error sending ping message:', error);
-			});
-
-		// sendMessage('cs:ping', { data: metadata }, 'background').then(
-		// 	(response) => {
-		// 		console.log('got response to METADATA_RESPONSE', response)
-		// 	},
-		// )
 	},
 });
