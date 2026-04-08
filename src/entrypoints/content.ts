@@ -2,6 +2,7 @@ export default defineContentScript({
 	matches: ['*://*.gibbon-snake.ts.net/*'],
 	allFrames: true,
 	main(ctx) {
+		console.log('content script lodaded', ctx);
 		function readMetadataFromDocument(resolvedUrl) {
 			console.log('content script readMetadataFromDocument', resolvedUrl);
 			const getMeta = (property) => {
@@ -31,16 +32,17 @@ export default defineContentScript({
 		console.log('metadata', metadata);
 
 		browser.runtime.onMessage.addListener((message, sender) => {
-			if (message.type === 'get-serivice-metadata') {
+			if (message.type === 'get-service-metadata') {
 				console.log(
 					'Received GET_PAGE_METADATA message in content script',
 					message,
 				);
-				const response = {
-					ok: true,
-					metadata,
-				};
-				return Promise.resolve(response);
+				browser.runtime.sendMessage({
+					type: 'service-metadata',
+					data: metadata,
+					source: 'content-script',
+					target: 'background',
+				});
 			}
 		});
 

@@ -11,7 +11,7 @@ browser.runtime.onMessage.addListener((message) => {
 	if (message.type === 'GET_LOCAL_IPS') {
 		getIps()
 			.then((ips) => {
-				console.log('IPs found in offscreen', ips);
+				// console.log('IPs found in offscreen', ips);
 				browser.runtime.sendMessage({
 					type: 'LOCAL_IPS',
 					ips,
@@ -21,7 +21,7 @@ browser.runtime.onMessage.addListener((message) => {
 				console.error('Error getting IPs in offscreen page:', err);
 			});
 	} else if (message.type === 'PING') {
-		console.log('Received ping message in offscreen page');
+		// console.log('Received ping message in offscreen page');
 		browser.runtime
 			.sendMessage({
 				type: 'PONG',
@@ -38,7 +38,24 @@ browser.runtime.onMessage.addListener((message) => {
 			'Received iframe-metadata message in offscreen page:',
 			message.data,
 		);
-		// You can store this metadata in a variable or use it as needed
+
+		let functions = [];
+		for (const [key, value] of Object.entries(message.data)) {
+			functions.push(
+				new Promise((resolve) => {
+					const iframe = document.createElement('iframe');
+					iframe.style.display = 'none';
+					iframe.src = value;
+					iframe.onload = () => {
+						console.log(`Iframe for ${key} loaded`);
+						resolve({ key, url: value });
+					};
+					document.body.appendChild(iframe);
+				}),
+			);
+		}
+
+		let result = Promise.all(functions);
 	}
 });
 

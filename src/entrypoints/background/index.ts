@@ -92,7 +92,7 @@ export default defineBackground(() => {
 
 		app.initialize().then(() => {
 			app.onUpdate((state) => {
-				console.log('App state updated:', state);
+				// console.log('App state updated:', state);
 				browser.runtime.sendMessage({
 					type: 'APP_STATE_UPDATE',
 					state,
@@ -100,6 +100,37 @@ export default defineBackground(() => {
 			});
 
 			registerService(APP_KEY, app);
+
+			let _state = app.getState();
+			console.log('state', _state);
+
+			let _serviceUrls = _state.services.map((s) => s.uri);
+
+			browser.runtime.onMessage.addListener((message) => {
+				if (message.type === 'service-metadata') {
+					console.log(
+						'Received service-metadata message in background script',
+						message,
+					);
+				}
+			});
+
+			browser.runtime
+				.sendMessage({
+					type: 'IFRAME_METADATA',
+					target: 'offscreen',
+					data: _serviceUrls,
+				})
+				.catch((error) => {
+					console.error('Error sending ping message:', error);
+				})
+				.then((response) => {
+					console.log('In IFRAME_METADATA then', response);
+					browser.runtime.sendMessage({
+						type: 'get-serivice-metadata',
+						target: 'content-scripts',
+					});
+				});
 
 			// setInterval(() => {
 			// 	console.log('deviceProbeInterval');
@@ -112,13 +143,23 @@ export default defineBackground(() => {
 				// initial value of local ips
 				browser.runtime.onMessage.addListener((message) => {
 					if (message.type === 'LOCAL_IPS') {
-						console.log('Received local IPs from offscreen:', message.ips);
+						// console.log('Received local IPs from offscreen:', message.ips);
 						app.setLocalIps(message.ips);
 					}
 
-					if (message.type === 'iframe-metadata') {
+					if (
+						message.type === 'iframe-metadata' &&
+						message.source === 'offscreen'
+					) {
 						console.log(
 							'XXX Received iframe-metadata message in background script:',
+							message,
+						);
+					}
+
+					if (message.type === 'get-serivice-metadata') {
+						console.log(
+							'Received GET_PAGE_METADATA message in background script',
 							message,
 						);
 					}
@@ -139,16 +180,7 @@ export default defineBackground(() => {
 						console.error('Error getting local IPs:', error);
 					});
 
-				/**
-				 * Notes:
-				 *
-				 * * need to get service urls and trigger a loop that creates iframes for
-				 * * each service url, and then scrapes metadata from those iframes:
-				 *  - send event to offsc reen to create iframe
-				 *  - get event from iframe with metadata
-				 *  - update service metadata in app state
-				 *  - trigger next iframe load in offscreen
-				 */
+				// let _serviceUrls = app.services.map((s) => s.url);
 			})
 			.catch((error) => {
 				console.error('Error setting up offscreen document:', error);

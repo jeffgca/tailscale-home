@@ -273,7 +273,7 @@ export class TailscaleAPI {
 			if (devices.length > 0) {
 				const firstDevice = devices[0];
 				const subdomain = firstDevice.name;
-				console.log('subdomain', subdomain);
+				// console.log('subdomain', subdomain);
 
 				if (subdomain.endsWith('.ts.net')) {
 					let magicDnsDomain = subdomain.split('.').slice(1).join('.');
