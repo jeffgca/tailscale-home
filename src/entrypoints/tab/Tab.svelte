@@ -32,10 +32,9 @@
 	$inspect('appState', appState);
 
 	onMount(async () => {
-		// console.log('in onMount');
+		console.log('in onMount');
 		appService.getState().then((state) => {
 			appState = state;
-			console.log('appState.status', appState.status);
 		});
 	});
 

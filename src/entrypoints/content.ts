@@ -32,8 +32,11 @@ export default defineContentScript({
 		console.log('metadata', metadata);
 
 		browser.runtime.onMessage.addListener((message, sender) => {
-			if (message.type === 'GET_PAGE_METADATA') {
-				// console.log('Received GET_PAGE_METADATA message in content script', message);
+			if (message.type === 'get-serivice-metadata') {
+				console.log(
+					'Received GET_PAGE_METADATA message in content script',
+					message,
+				);
 				const response = {
 					ok: true,
 					metadata,

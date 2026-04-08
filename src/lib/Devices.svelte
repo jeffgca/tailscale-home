@@ -1,5 +1,5 @@
 <script>
-	let { devices } = $props();
+	let { devices, currentDevice } = $props();
 
 	$inspect('Devices.svelte', devices);
 
@@ -53,8 +53,12 @@
 
 		<ul>
 			<li>
-				Hostname: <a class="device-link" href={device.name}>{device.name}</a> /
-				IP: {device.address}
+				Hostname: <a
+					class="device-link"
+					target="_blank"
+					href="https://{device.name}">{device.name}</a
+				>
+				🔗 / IP: {device.address}
 			</li>
 			<li>OS: {device.os}</li>
 			<li>

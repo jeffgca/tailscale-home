@@ -43,9 +43,14 @@ export class App {
 			this.#_current.magicDnsEnabled = await this.client.magicDnsSetting();
 			this.#_current.devices = await this.client.listDevices();
 			this.#_current.services = await this.client.listServices(true);
+
+			// this initialization takes a while so we detect the current device after explicitly
+			this.setCurrentDevice();
 		} else {
 			console.warn('Tailnet API is not available in this browser');
 		}
+
+		console.log('XXX init', this.getState());
 	}
 
 	async updateDevicesAndServices() {
@@ -57,6 +62,8 @@ export class App {
 		let _devices = await this.client.listDevices();
 		let _services = await this.client.listServices();
 
+		this.setCurrentDevice();
+
 		this.update({
 			devices: this.#_current.devices,
 			services: this.#_current.services,
@@ -65,34 +72,64 @@ export class App {
 
 	setCurrentDevice() {
 		if (!this.#_current.localIps || this.#_current.localIps.length === 0) {
+			console.log('huh?', this.#_current.localIps);
 			return;
 		}
 
-		let devices = this.#_current.devices || [];
+		// if ()
 
 		this.#_current.status = 'disconnected';
 
+		// console.log(
+		// 	'ZZZ includes?',
+		// 	this.#_current.localIps.includes(device.address),
+		// );
+
+		console.log('XXX devices', this.#_current.devices.length);
+
+		if (this.#_current.devices.length === 0) {
+			console.log('No devices found in tailnet');
+			return;
+		}
+
+		// this.#_current.devices.forEach((device, i) => {
+		// 	console.log('XXX device', device);
+		// });
+
 		this.#_current.devices.forEach((device, i) => {
+			console.log('device', device);
 			device.isCurrent = this.#_current.localIps.includes(device.address);
+
+			console.log('XXX device.isCurrent', device.isCurrent, device.address);
 
 			if (device.isCurrent) {
 				// if any device matches local IPs, we consider the tailnet to be connected
 				this.#_current.status = 'connected';
+				this.#_current.currentDevice = device;
+				console.log('Current device set to', device);
 			}
 
 			this.#_current.devices[i] = device;
 		});
+
+		console.log('setCurrentDevice', this.getState());
 	}
 
 	update(object) {
-		this.setCurrentDevice();
+		console.log('XXX in update', object);
 		let _current = this.getState();
 		this.#_current = { ..._current, ...object };
+		// this.setCurrentDevice();
 		this.#_handlers.forEach((handler) => handler(this.getState()));
 	}
 
 	getState() {
 		return this.#_current;
+	}
+
+	setLocalIps(ips) {
+		this.update({ localIps: ips });
+		this.setCurrentDevice();
 	}
 
 	onUpdate(handler) {

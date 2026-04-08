@@ -30,7 +30,7 @@ export async function getIps() {
 			if (!e.candidate) {
 				// Candidate gathering completed.
 				pc.close();
-				console.log('ips', ips);
+				// console.log('ips', ips);
 				resolve(ips);
 				return;
 			}
