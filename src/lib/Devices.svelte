@@ -35,6 +35,11 @@
 		yes: '✅',
 		no: '❌',
 	};
+
+	function viewDetail() {
+		let name = this.id;
+		alert('clicked view detail for ' + name);
+	}
 </script>
 
 {#each sortedDevices as device}
@@ -49,6 +54,9 @@
 				{device.hostname}
 				{device.isCurrent ? ' ( current device )' : ''}
 			</h3>
+			<button id={device.name} onclick={viewDetail} class="edit-link btn btn-sm"
+				>Detail</button
+			>
 		</div>
 
 		<ul>
@@ -105,5 +113,15 @@
 
 	.border-accent {
 		border-color: green;
+	}
+
+	.edit-link {
+		margin-left: auto;
+		font-size: 1rem;
+		color: blue;
+
+		/* font-weight: bold; */
+		color: var(--text-secondary);
+		cursor: pointer;
 	}
 </style>
