@@ -10,7 +10,7 @@ import {
 	setCachedServiceMetadata,
 } from '../../lib/storage';
 
-let iframeHosts = [];
+let iframeHosts = ['home.gibbon-snake.ts.net'];
 
 const RULE = {
 	id: 1,
@@ -55,13 +55,15 @@ export default defineBackground(() => {
 		defaultValue: '',
 	});
 
+	// handle lack of tailscale api key?
+
 	/**
 	 * Interval in seconds to check if device is connected to tailnet
 	 */
 	const tailnetCheckIntervalSeconds = storage.defineItem<number>(
 		'local:tailnetCheckIntervalSeconds',
 		{
-			defaultValue: 30,
+			defaultValue: 30, // 30 seconds
 		},
 	);
 
@@ -86,7 +88,7 @@ export default defineBackground(() => {
 	]).then(([apiKey, tailnetCheckInterval, deviceProbeInterval]) => {
 		clearInterval(loop);
 
-		// console.log('XXX', cachedMetadata);
+		console.log('XXX', apiKey, tailnetCheckInterval, deviceProbeInterval);
 
 		app = new App({
 			debug: IS_FIREFOX,
@@ -97,6 +99,8 @@ export default defineBackground(() => {
 		});
 
 		app.initialize().then(() => {
+			console.log('XXXX initialized', app.getState());
+
 			app.onUpdate((state) => {
 				// console.log('App state updated:', state);
 				browser.runtime.sendMessage({
@@ -123,7 +127,7 @@ export default defineBackground(() => {
 
 			let _serviceUrls = _state.services.map((s) => s.uri);
 
-			console.log('XXXX', _serviceUrls);
+			// console.log('XXXX', _serviceUrls);
 
 			let _serviceHosts = _serviceUrls
 				.map((url) => {
@@ -156,7 +160,7 @@ export default defineBackground(() => {
 				}),
 			).then((cachedMetadataArray) => {
 				cachedMetadataArray.forEach((metadata, index) => {
-					// console.log('XXX', metadata, _serviceUrls[index]);
+					console.log('XXX', metadata, _serviceUrls[index]);
 					if (metadata) {
 						app.setSiteMetadata(_serviceUrls[index], metadata.metadata);
 					} else {
@@ -216,15 +220,13 @@ export default defineBackground(() => {
 						.catch((error) => {
 							console.error('Error getting local IPs:', error);
 						});
-				}, 300);
+				}, 2000);
 
-				browser.runtime
-					.sendMessage({ type: 'GET_LOCAL_IPS', target: 'offscreen' })
-					.catch((error) => {
-						console.error('Error getting local IPs:', error);
-					});
-
-				// let _serviceUrls = app.services.map((s) => s.url);
+				// browser.runtime
+				// 	.sendMessage({ type: 'GET_LOCAL_IPS', target: 'offscreen' })
+				// 	.catch((error) => {
+				// 		console.error('Error getting local IPs:', error);
+				// 	});
 			})
 			.catch((error) => {
 				console.error('Error setting up offscreen document:', error);

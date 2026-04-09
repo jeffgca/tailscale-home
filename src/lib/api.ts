@@ -101,7 +101,7 @@ export class TailscaleAPI {
 		this.apiKey = apiKey;
 		this.tailnet = tailnet;
 		this.magicDnsEnabled = false;
-		this.status = {};
+		this.status = false;
 		this.magicDnsDomain = null;
 	}
 
@@ -168,6 +168,8 @@ export class TailscaleAPI {
 			};
 		});
 
+		console.log('XXXX DEVICES', _return);
+
 		return _return;
 	}
 
@@ -206,30 +208,6 @@ export class TailscaleAPI {
 		let _return = await Promise.all(
 			_services.vipServices.map(async (service) => {
 				let _uri = this._getServiceUrl(service);
-				// let metadata = null;
-				// let cachedMetadata = await getCachedServiceMetadata(_uri);
-
-				// const cacheIsFresh =
-				// 	!forceRefreshMetadata &&
-				// 	cachedMetadata !== null &&
-				// 	Date.now() - new Date(cachedMetadata.cachedAt).getTime() <=
-				// 		SERVICE_METADATA_CACHE_MAX_AGE_MS;
-
-				// if (cacheIsFresh && cachedMetadata) {
-				// 	metadata = cachedMetadata.metadata;
-				// } else {
-				// 	try {
-				// 		metadata = await fetchPageMetadata(_uri);
-				// 		console.log('XXX metadata', metadata);
-				// 		await setCachedServiceMetadata(_uri, metadata);
-				// 	} catch (error) {
-				// 		console.warn(`Failed to fetch service metadata for ${_uri}`, error);
-
-				// 		if (cachedMetadata) {
-				// 			metadata = cachedMetadata.metadata;
-				// 		}
-				// 	}
-				// }
 
 				return {
 					name: service.name,
@@ -244,7 +222,7 @@ export class TailscaleAPI {
 			}),
 		);
 
-		console.log('XXX services', _return);
+		// console.log('XXX services', _return);
 
 		return _return;
 	}
@@ -351,9 +329,15 @@ export async function createTailscaleClient(): Promise<TailscaleAPI | null> {
 		return null;
 	}
 
-	let client = new TailscaleAPI(apiKey, tailnet);
-	await client.initialize();
-	return client;
+	// console.log('createTailscaleClient', apiKey, tailnet);
+
+	try {
+		let client = new TailscaleAPI(apiKey, tailnet);
+		await client.initialize();
+		return client;
+	} catch (error) {
+		throw new Error(`Failed to create Tailscale client: `, error);
+	}
 }
 
 /**
@@ -383,14 +367,15 @@ export async function checkBrowserConnectivity(): Promise<ConnectivityCheckResul
 		};
 	}
 
-	let result = await fetch(`${TAILSCALE_API_BASE}/tailnet/-/devices`, {
-		headers: {
-			Authorization: `Bearer ${apiKey}`,
-			'Content-Type': 'application/json',
+	let result = await fetch(
+		`${TAILSCALE_API_BASE}/tailnet/-/dns/configuration`,
+		{
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				'Content-Type': 'application/json',
+			},
 		},
-	});
+	);
 
-	console.log('XXX connectivity check response', result);
-
-	return result;
+	return result.ok;
 }

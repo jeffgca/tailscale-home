@@ -38,11 +38,11 @@ export class App {
 
 		console.log('XXXX check', result);
 
-		this.#_current.apiStatus = result.ok;
+		this.#_current.apiStatus = result;
 
 		this.client = await createTailscaleClient(this.apiKey);
 
-		if (this.#_current.apiStatus) {
+		if (this.#_current.apiStatus === true) {
 			this.#_current.magicDnsEnabled = await this.client.magicDnsSetting();
 			this.#_current.devices = await this.client.listDevices();
 			this.#_current.services = await this.client.listServices(true);

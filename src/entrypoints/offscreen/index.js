@@ -2,9 +2,8 @@
 import { getIps } from '../../lib/localip';
 
 browser.runtime.onMessage.addListener((message) => {
-	// console.log('message received in offscreen page', message);
-
 	if (message.target && message.target !== 'offscreen') {
+		console.log('message received in offscreen page', message);
 		return;
 	}
 
