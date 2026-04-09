@@ -1,7 +1,7 @@
 <script>
 	let { devices, currentDevice } = $props();
 
-	$inspect('Devices.svelte', devices);
+	// $inspect('Devices.svelte', devices);
 
 	// $derived()
 
@@ -47,7 +47,7 @@
 			{@html iCons[device.os] || iCons['unknown']}
 			<h3 class="text-lg font-semibold">
 				{device.hostname}
-				{device.isCurrent ? ' (This Device)' : ''}
+				{device.isCurrent ? ' ( current device )' : ''}
 			</h3>
 		</div>
 

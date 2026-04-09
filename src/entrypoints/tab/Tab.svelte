@@ -118,24 +118,6 @@
 </main>
 
 <style>
-	:global([data-theme='light']) {
-		--bg-primary: #ffffff;
-		--bg-secondary: #f5f5f5;
-		--text-primary: #000000;
-		--text-secondary: #666666;
-		--border-color: #dddddd;
-		--accent-color: #333333;
-	}
-
-	:global([data-theme='dark']) {
-		--bg-primary: #1a1a1a;
-		--bg-secondary: #2d2d2d;
-		--text-primary: #ffffff;
-		--text-secondary: #b0b0b0;
-		--border-color: #444444;
-		--accent-color: #e0e0e0;
-	}
-
 	.content {
 		padding: 1.5rem;
 		max-width: 1200px;
@@ -167,7 +149,7 @@
 	}
 
 	header {
-		text-align: center;
+		/* text-align: center; */
 		margin-bottom: 1.5rem;
 	}
 

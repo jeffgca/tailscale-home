@@ -5,8 +5,12 @@ import { APP_KEY } from './proxy_keys';
 const IS_FIREFOX = import.meta.env.BROWSER === 'firefox';
 import { getIps } from '../../lib/localip';
 import { setupOffscreenDocument } from '../../lib/offscreen';
+import {
+	getCachedServiceMetadata,
+	setCachedServiceMetadata,
+} from '../../lib/storage';
 
-let iframeHosts = ['home.gibbon-snake.ts.net'];
+let iframeHosts = [];
 
 const RULE = {
 	id: 1,
@@ -35,10 +39,10 @@ const RULE = {
 
 export default defineBackground(() => {
 	// magic voodoo that allegedly helps us load iframes without security problems
-	chrome.declarativeNetRequest.updateDynamicRules({
-		removeRuleIds: [RULE.id],
-		addRules: [RULE],
-	});
+	// chrome.declarativeNetRequest.updateDynamicRules({
+	// 	removeRuleIds: [RULE.id],
+	// 	addRules: [RULE],
+	// });
 
 	let apiKey = null;
 	let tailnetCheckInterval = null;
@@ -82,6 +86,8 @@ export default defineBackground(() => {
 	]).then(([apiKey, tailnetCheckInterval, deviceProbeInterval]) => {
 		clearInterval(loop);
 
+		// console.log('XXX', cachedMetadata);
+
 		app = new App({
 			debug: IS_FIREFOX,
 			apiKey,
@@ -102,7 +108,7 @@ export default defineBackground(() => {
 			registerService(APP_KEY, app);
 
 			let _state = app.getState();
-			console.log('state', _state);
+			// console.log('state', _state);
 
 			browser.runtime.onMessage.addListener((message) => {
 				if (message.type === 'service-metadata') {
@@ -117,26 +123,62 @@ export default defineBackground(() => {
 
 			let _serviceUrls = _state.services.map((s) => s.uri);
 
-			browser.runtime
-				.sendMessage({
-					type: 'IFRAME_METADATA',
-					target: 'offscreen',
-					data: _serviceUrls,
-				})
-				.catch((error) => {
-					console.error('Error sending ping message:', error);
-				})
-				.then((response) => {
-					console.log('In IFRAME_METADATA then', response);
-					browser.runtime.sendMessage({
-						type: 'get-serivice-metadata',
-						target: 'content-scripts',
-					});
-				});
+			console.log('XXXX', _serviceUrls);
 
-			// setInterval(() => {
-			// 	console.log('deviceProbeInterval');
-			// }, tailnetCheckInterval);
+			let _serviceHosts = _serviceUrls
+				.map((url) => {
+					try {
+						return new URL(url).host;
+					} catch (error) {
+						console.error('Error parsing service URL:', url, error);
+						return null;
+					}
+				})
+				.filter(Boolean);
+
+			/**
+			 * _serviceHosts is empty wtf
+			 */
+			RULE.condition.requestDomains = _serviceHosts;
+
+			if (_serviceHosts.length > 0) {
+				chrome.declarativeNetRequest.updateDynamicRules({
+					removeRuleIds: [RULE.id],
+					addRules: [RULE],
+				});
+			}
+
+			// see if we have cached Metadata for these services and if so set it in the app state so it's immediately available to the UI
+
+			Promise.all(
+				_serviceHosts.map((host) => {
+					return getCachedServiceMetadata(host);
+				}),
+			).then((cachedMetadataArray) => {
+				cachedMetadataArray.forEach((metadata, index) => {
+					// console.log('XXX', metadata, _serviceUrls[index]);
+					if (metadata) {
+						app.setSiteMetadata(_serviceUrls[index], metadata.metadata);
+					} else {
+						browser.runtime
+							.sendMessage({
+								type: 'IFRAME_METADATA',
+								target: 'offscreen',
+								data: _serviceUrls,
+							})
+							.catch((error) => {
+								console.error('Error sending ping message:', error);
+							})
+							.then((response) => {
+								// console.log('In IFRAME_METADATA then', response);
+								browser.runtime.sendMessage({
+									type: 'get-service-metadata',
+									target: 'content-scripts',
+								});
+							});
+					}
+				});
+			});
 		});
 
 		setupOffscreenDocument('/offscreen.html')
@@ -159,7 +201,7 @@ export default defineBackground(() => {
 						);
 					}
 
-					if (message.type === 'get-serivice-metadata') {
+					if (message.type === 'get-service-metadata') {
 						console.log(
 							'Received GET_PAGE_METADATA message in background script',
 							message,
@@ -174,7 +216,7 @@ export default defineBackground(() => {
 						.catch((error) => {
 							console.error('Error getting local IPs:', error);
 						});
-				}, tailnetCheckInterval);
+				}, 300);
 
 				browser.runtime
 					.sendMessage({ type: 'GET_LOCAL_IPS', target: 'offscreen' })

@@ -36,6 +36,8 @@ export class App {
 		// console.log('App initialization finished')
 		const result = await checkBrowserConnectivity();
 
+		console.log('XXXX check', result);
+
 		this.#_current.apiStatus = result.ok;
 
 		this.client = await createTailscaleClient(this.apiKey);
@@ -44,6 +46,8 @@ export class App {
 			this.#_current.magicDnsEnabled = await this.client.magicDnsSetting();
 			this.#_current.devices = await this.client.listDevices();
 			this.#_current.services = await this.client.listServices(true);
+
+			this.#_current.serviceMetadata = {};
 
 			// this initialization takes a while so we detect the current device after explicitly
 			this.setCurrentDevice();
@@ -110,20 +114,9 @@ export class App {
 	}
 
 	setSiteMetadata(url, metadata) {
-		console.log('ZZZ setSiteMetadata', url, metadata);
 		let _uri = new URL(url).origin;
-
-		// if (metadata.image.startsWith('./')) {
 		let _imageUrl = new URL(metadata.image, url).href;
 		metadata.image = _imageUrl;
-		console.log('ZZZ resolved image url', _imageUrl);
-		// metadata.image = getFullUrl(metadata.image);
-		// } else {
-		// 	console.log('ZZZ image url does not need resolution', metadata.image);
-		// }
-
-		// console.log('ZZZ', _uri);
-
 		this.#_current.servicesMetaData[_uri] = metadata;
 		this.update();
 	}

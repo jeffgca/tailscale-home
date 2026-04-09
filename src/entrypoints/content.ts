@@ -8,6 +8,7 @@ export default defineContentScript({
 			const getMeta = (property) => {
 				const el =
 					document.querySelector(`meta[property="${property}"]`) ??
+					document.querySelector(`meta[property="og:${property}"]`) ??
 					document.querySelector(`meta[name="${property}"]`);
 				return el?.getAttribute('content') ?? undefined;
 			};
@@ -31,7 +32,7 @@ export default defineContentScript({
 			return {
 				url: resolvedUrl,
 				title: (getMeta('og:title') ?? document.title) || undefined,
-				description: getMeta('og:description'),
+				description: getMeta('description'),
 				image: _image,
 			};
 		}

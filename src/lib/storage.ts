@@ -124,6 +124,8 @@ export async function getCachedServiceMetadata(
 	serviceUri: string,
 ): Promise<ServiceMetadataCacheEntry | null> {
 	const cache = await serviceMetadataCache.getValue();
+
+	// console.log('storage cache', cache);
 	return cache[serviceUri] ?? null;
 }
 

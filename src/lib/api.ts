@@ -363,6 +363,8 @@ export async function createTailscaleClient(): Promise<TailscaleAPI | null> {
 export async function checkBrowserConnectivity(): Promise<ConnectivityCheckResult> {
 	const apiKey = await tailscaleApiKey.getValue();
 
+	console.log('apiKey', apiKey);
+
 	if (!apiKey) {
 		return {
 			status: ConnectivityStatus.NotConfigured,
