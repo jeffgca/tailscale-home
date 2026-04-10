@@ -1,5 +1,11 @@
 <script>
-	let { services, metadata } = $props();
+	import { appState } from './appstate.svelte';
+
+	let services = $derived(appState?.state.services || []);
+
+	let metadata = $derived(appState?.state?.servicesMetaData || []);
+
+	$inspect('Services.svelte services', services);
 
 	function fetchPageMetadataFromTab(uri) {
 		let _win = window.open(uri, '_blank');
@@ -31,12 +37,10 @@
 			}
 		});
 	});
-
-	// $inspect('XXX _services', _services);
 </script>
 
 {#each _services as service}
-	<div class="service-card border rounded p-2 mb-4">
+	<div class="card service-card border rounded p-2 mb-4">
 		<div class="flex items-center space-x-4 mb-2">
 			{#if service.metadata?.image}
 				<img
@@ -53,7 +57,7 @@
 			Description: {service?.metadata?.description ||
 				'No description available'}
 		</p>
-		<p class="text-sm text-gray-400">
+		<p class="text-sm">
 			URL: <a target="_blank" href={service?.uri}>{service.uri}</a>
 		</p>
 
@@ -67,11 +71,3 @@
 		{/if}
 	</div>
 {/each}
-
-<style>
-	.service-card {
-		background-color: var(--bg-secondary);
-		color: var(--text-primary);
-		border-color: var(--border-color);
-	}
-</style>

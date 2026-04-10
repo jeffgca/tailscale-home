@@ -1,9 +1,7 @@
 <script>
-	let { devices, currentDevice } = $props();
+	import { appState } from './appstate.svelte';
 
-	// $inspect('Devices.svelte', devices);
-
-	// $derived()
+	let devices = $derived(appState?.state?.devices || []);
 
 	let sortedDevices = $derived.by(() => {
 		let _devices = [...devices];
@@ -38,13 +36,13 @@
 
 	function viewDetail() {
 		let name = this.id;
-		alert('clicked view detail for ' + name);
+		// alert('clicked view detail for ' + name);
 	}
 </script>
 
 {#each sortedDevices as device}
 	<div
-		class="device-card border rounded p-4 mb-4 {device.isCurrent
+		class="card device-card border rounded p-4 mb-4 {device.isCurrent
 			? 'border-accent'
 			: ''}"
 	>
@@ -83,45 +81,9 @@
 		font-size: 0.9rem;
 	}
 
-	.device-card {
-		background-color: var(--bg-secondary);
-		color: var(--text-primary);
-		border-color: var(--border-color);
-	}
-
-	.device-header > h3 {
-		/* border: 1px solid red; */
-		/* color: red; */
-		font-size: 1.7rem;
-		line-height: normal;
-		padding-bottom: 1.5rem;
-		margin: 0;
-		padding: 0;
-	}
-
-	.device-card > ul {
-		margin-top: 0.5rem;
-		margin-left: 0;
-		padding-left: 0;
-		list-style: none;
-	}
-
-	.device-card > ul > li {
-		margin: 0;
-		padding: 0;
-	}
-
-	.border-accent {
-		border-color: green;
-	}
-
 	.edit-link {
 		margin-left: auto;
 		font-size: 1rem;
-		color: blue;
-
-		/* font-weight: bold; */
-		color: var(--text-secondary);
 		cursor: pointer;
 	}
 </style>
