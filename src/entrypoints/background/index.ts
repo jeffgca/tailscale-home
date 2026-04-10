@@ -38,12 +38,6 @@ const RULE = {
  */
 
 export default defineBackground(() => {
-	// magic voodoo that allegedly helps us load iframes without security problems
-	// chrome.declarativeNetRequest.updateDynamicRules({
-	// 	removeRuleIds: [RULE.id],
-	// 	addRules: [RULE],
-	// });
-
 	let apiKey = null;
 	let tailnetCheckInterval = null;
 	let deviceProbeInterval = null;
@@ -99,8 +93,6 @@ export default defineBackground(() => {
 		});
 
 		app.initialize().then(() => {
-			console.log('XXXX initialized', app.getState());
-
 			app.onUpdate((state) => {
 				// console.log('App state updated:', state);
 				browser.runtime.sendMessage({
@@ -112,7 +104,6 @@ export default defineBackground(() => {
 			registerService(APP_KEY, app);
 
 			let _state = app.getState();
-			// console.log('state', _state);
 
 			browser.runtime.onMessage.addListener((message) => {
 				if (message.type === 'service-metadata') {
@@ -126,8 +117,6 @@ export default defineBackground(() => {
 			});
 
 			let _serviceUrls = _state.services.map((s) => s.uri);
-
-			// console.log('XXXX', _serviceUrls);
 
 			let _serviceHosts = _serviceUrls
 				.map((url) => {
@@ -160,7 +149,6 @@ export default defineBackground(() => {
 				}),
 			).then((cachedMetadataArray) => {
 				cachedMetadataArray.forEach((metadata, index) => {
-					console.log('XXX', metadata, _serviceUrls[index]);
 					if (metadata) {
 						app.setSiteMetadata(_serviceUrls[index], metadata.metadata);
 					} else {
@@ -220,13 +208,7 @@ export default defineBackground(() => {
 						.catch((error) => {
 							console.error('Error getting local IPs:', error);
 						});
-				}, 2000);
-
-				// browser.runtime
-				// 	.sendMessage({ type: 'GET_LOCAL_IPS', target: 'offscreen' })
-				// 	.catch((error) => {
-				// 		console.error('Error getting local IPs:', error);
-				// 	});
+				}, 5000);
 			})
 			.catch((error) => {
 				console.error('Error setting up offscreen document:', error);
@@ -256,7 +238,5 @@ export default defineBackground(() => {
 				});
 			}
 		});
-
-		// console.log('services?', app.services);
 	});
 });

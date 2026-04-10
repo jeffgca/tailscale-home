@@ -1,8 +1,6 @@
 <script lang="ts">
 	import './app.css';
 	import { onMount } from 'svelte';
-	import { JsonView } from '@zerodevx/svelte-json-view';
-
 	import { createProxyService } from '@webext-core/proxy-service';
 	import { APP_KEY } from '../background/proxy_keys';
 	import { appState } from '@/lib/appstate.svelte';
