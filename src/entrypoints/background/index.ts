@@ -5,6 +5,8 @@ import { APP_KEY } from './proxy_keys';
 const IS_FIREFOX = import.meta.env.BROWSER === 'firefox';
 import { getIps } from '../../lib/localip';
 import { setupOffscreenDocument } from '../../lib/offscreen';
+import { scanResponsiveHttpPorts } from '../../lib/reachability';
+
 import {
 	getCachedServiceMetadata,
 	setCachedServiceMetadata,
@@ -82,7 +84,7 @@ export default defineBackground(() => {
 	]).then(([apiKey, tailnetCheckInterval, deviceProbeInterval]) => {
 		clearInterval(loop);
 
-		console.log('XXX', apiKey, tailnetCheckInterval, deviceProbeInterval);
+		// console.log('XXX', apiKey, tailnetCheckInterval, deviceProbeInterval);
 
 		app = new App({
 			debug: IS_FIREFOX,
@@ -93,8 +95,13 @@ export default defineBackground(() => {
 		});
 
 		app.initialize().then(() => {
+			let _state = app.getState();
+
+			console.log('XXX after init', _state);
+
+			let _devices = _state.devices;
+
 			app.onUpdate((state) => {
-				// console.log('App state updated:', state);
 				browser.runtime.sendMessage({
 					type: 'APP_STATE_UPDATE',
 					state,
@@ -102,8 +109,6 @@ export default defineBackground(() => {
 			});
 
 			registerService(APP_KEY, app);
-
-			let _state = app.getState();
 
 			browser.runtime.onMessage.addListener((message) => {
 				if (message.type === 'service-metadata') {

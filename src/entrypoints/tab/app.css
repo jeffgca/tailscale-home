@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 @plugin "daisyui" {
-	themes: dim --default;
+	themes: cupcake --default;
 }
 @plugin "@tailwindcss/typography";
 
@@ -8,7 +8,7 @@ main {
 	padding: 1rem;
 }
 
-.card {
+/* .card {
 	background-color: var(--color-base-content);
 	color: var(--color-base-100);
-}
+} */

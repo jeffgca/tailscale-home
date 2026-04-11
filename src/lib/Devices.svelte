@@ -3,6 +3,8 @@
 
 	let devices = $derived(appState?.state?.devices || []);
 
+	import { p, navigate } from '../entrypoints/tab/router';
+
 	let sortedDevices = $derived.by(() => {
 		let _devices = [...devices];
 		if (_devices.find((d) => d.isCurrent)) {
@@ -36,7 +38,17 @@
 
 	function viewDetail() {
 		let name = this.id;
+		// console.log('name', name);
 		// alert('clicked view detail for ' + name);
+
+		let _path = p(`/tab.html/device/:name`, {
+			params: { name },
+			replace: true,
+		});
+
+		console.log('p', _path);
+
+		navigate(_path);
 	}
 </script>
 

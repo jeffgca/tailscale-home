@@ -8,5 +8,5 @@ export const { p, navigate, isActive, route } = createRouter({
 	'/tab.html': Services,
 	'/tab.html/devices': Devices,
 	layout: Layout,
-	'/tab.html/device/:id': Device,
+	'/tab.html/device/:name': Device,
 });

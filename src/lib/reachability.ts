@@ -1,47 +1,47 @@
-import type { Device } from './api'
-import { createTailscaleClient } from './api'
+import type { Device } from './api';
+import { createTailscaleClient } from './api';
 import {
 	deviceReachability,
 	deviceReachabilityLastScan,
 	type DeviceReachabilityMap,
 	type DeviceReachabilityResult,
-} from './storage'
+} from './storage';
 
 function isIpv6(address: string): boolean {
-	return address.includes(':')
+	return address.includes(':');
 }
 
 function hostForUrl(hostOrIp: string): string {
-	return isIpv6(hostOrIp) ? `[${hostOrIp}]` : hostOrIp
+	return isIpv6(hostOrIp) ? `[${hostOrIp}]` : hostOrIp;
 }
 
 function getProbeTargets(device: Device): string[] {
-	const targets: string[] = []
-	const fqdn = device.name?.trim()
+	const targets: string[] = [];
+	const fqdn = device.name?.trim();
 	// const hostname = device.hostname?.trim();
 
-	console.log('fqdn', fqdn, 'addresses', device.addresses)
+	console.log('fqdn', fqdn, 'addresses', device.addresses);
 
 	if (fqdn) {
-		targets.push(`https://${fqdn}`)
-		targets.push(`http://${fqdn}`)
+		targets.push(`https://${fqdn}`);
+		targets.push(`http://${fqdn}`);
 	}
 
 	for (const address of device.addresses ?? []) {
-		const host = hostForUrl(address)
+		const host = hostForUrl(address);
 
-		console.log('hostForUrl', address, host)
+		console.log('hostForUrl', address, host);
 
-		targets.push(`http://${host}`)
-		targets.push(`https://${host}`)
+		targets.push(`http://${host}`);
+		targets.push(`https://${host}`);
 	}
 
-	return [...new Set(targets)]
+	return [...new Set(targets)];
 }
 
 async function probeUrl(url: string, timeoutMs = 2500): Promise<boolean> {
-	const controller = new AbortController()
-	const timeout = setTimeout(() => controller.abort(), timeoutMs)
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
 	try {
 		let result = await fetch(url, {
@@ -49,40 +49,112 @@ async function probeUrl(url: string, timeoutMs = 2500): Promise<boolean> {
 			mode: 'no-cors',
 			cache: 'no-store',
 			signal: controller.signal,
-		})
+		});
 
-		console.log('prope response from', url, result)
-		return true
+		console.log('prope response from', url, result);
+		return true;
 	} catch (Err) {
-		console.warn('probe error for', url, Err)
-		return false
+		console.warn('probe error for', url, Err);
+		return false;
 	} finally {
-		clearTimeout(timeout)
+		clearTimeout(timeout);
 	}
+}
+
+async function probeHttpPort(
+	host: string,
+	port: number,
+	timeoutMs: number,
+): Promise<boolean> {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+	try {
+		await fetch(`http://${host}:${port}`, {
+			method: 'HEAD',
+			mode: 'no-cors',
+			cache: 'no-store',
+			signal: controller.signal,
+		});
+		return true;
+	} catch {
+		return false;
+	} finally {
+		clearTimeout(timeout);
+	}
+}
+
+/**
+ * Scan a host for responsive HTTP ports in the provided inclusive range.
+ * Returns only ports that responded to an HTTP probe.
+ */
+export async function scanResponsiveHttpPorts(options?: {
+	host?: string;
+	startPort?: number;
+	endPort?: number;
+	timeoutMs?: number;
+	concurrency?: number;
+}): Promise<number[]> {
+	const host = options?.host ?? '127.0.0.1';
+	const startPort = options?.startPort ?? 1024;
+	const endPort = options?.endPort ?? 9999;
+	const timeoutMs = options?.timeoutMs ?? 400;
+	const concurrency = Math.max(1, options?.concurrency ?? 100);
+
+	if (startPort < 1 || endPort > 65535 || startPort > endPort) {
+		throw new Error('Invalid port range');
+	}
+
+	const responsive: number[] = [];
+	let nextPort = startPort;
+
+	const worker = async () => {
+		while (true) {
+			const port = nextPort;
+			nextPort += 1;
+
+			if (port > endPort) {
+				return;
+			}
+
+			if (await probeHttpPort(host, port, timeoutMs)) {
+				responsive.push(port);
+			}
+		}
+	};
+
+	await Promise.all(
+		Array.from({ length: Math.min(concurrency, endPort - startPort + 1) }, () =>
+			worker(),
+		),
+	);
+
+	responsive.sort((a, b) => a - b);
+	return responsive;
 }
 
 async function checkDeviceReachability(
 	device: Device,
 ): Promise<DeviceReachabilityResult> {
-	const checkedAt = new Date().toISOString()
-	const targets = getProbeTargets(device)
+	const checkedAt = new Date().toISOString();
+	const targets = getProbeTargets(device);
 
 	if (targets.length === 0) {
 		return {
 			status: 'unknown',
 			checkedAt,
 			detail: 'No hostname or IP targets available',
-		}
+		};
 	}
 
 	for (const target of targets) {
-		const isReachable = await probeUrl(target)
+		const isReachable = await probeUrl(target);
 		if (isReachable) {
 			return {
 				status: 'reachable',
 				checkedAt,
 				target,
-			}
+			};
 		}
 	}
 
@@ -90,42 +162,42 @@ async function checkDeviceReachability(
 		status: 'unreachable',
 		checkedAt,
 		detail: 'All HTTP/HTTPS probes failed or timed out',
-	}
+	};
 }
 
 export async function runAndStoreReachabilityScan(): Promise<DeviceReachabilityMap> {
-	const client = await createTailscaleClient()
+	const client = await createTailscaleClient();
 
 	if (!client) {
-		await deviceReachability.setValue({})
-		await deviceReachabilityLastScan.setValue(new Date().toISOString())
-		return {}
+		await deviceReachability.setValue({});
+		await deviceReachabilityLastScan.setValue(new Date().toISOString());
+		return {};
 	}
 
-	const { devices } = await client.listDevices('default')
-	const resultMap: DeviceReachabilityMap = {}
+	const { devices } = await client.listDevices('default');
+	const resultMap: DeviceReachabilityMap = {};
 
 	for (const device of devices) {
-		resultMap[device.id] = await checkDeviceReachability(device)
+		resultMap[device.id] = await checkDeviceReachability(device);
 	}
 
-	await deviceReachability.setValue(resultMap)
-	await deviceReachabilityLastScan.setValue(new Date().toISOString())
+	await deviceReachability.setValue(resultMap);
+	await deviceReachabilityLastScan.setValue(new Date().toISOString());
 
-	return resultMap
+	return resultMap;
 }
 
 /**
  * Get all devices from the tailnet
  */
 export async function getAllDevices(): Promise<Device[]> {
-	const client = await createTailscaleClient()
+	const client = await createTailscaleClient();
 	if (!client) {
-		return []
+		return [];
 	}
 
-	const result = await client.listDevices('all')
-	return result.devices || []
+	const result = await client.listDevices('all');
+	return result.devices || [];
 }
 
 /**
@@ -135,23 +207,23 @@ export async function isCurrentDeviceIPAvailable(
 	localIPList: string[],
 ): Promise<boolean> {
 	if (localIPList.length === 0) {
-		return false
+		return false;
 	}
 
 	try {
-		const devices = await getAllDevices()
+		const devices = await getAllDevices();
 
 		for (const device of devices) {
-			if (!device.addresses) continue
+			if (!device.addresses) continue;
 			for (const deviceIp of device.addresses) {
 				if (localIPList.includes(deviceIp)) {
-					return true
+					return true;
 				}
 			}
 		}
-		return false
+		return false;
 	} catch (error) {
-		console.error('Error checking if current device IP is available:', error)
-		return false
+		console.error('Error checking if current device IP is available:', error);
+		return false;
 	}
 }

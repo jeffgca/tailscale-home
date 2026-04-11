@@ -1,5 +1,15 @@
 import { createTailscaleClient, checkBrowserConnectivity } from './api';
 
+import { scanResponsiveHttpPorts } from './reachability';
+
+// const openPorts = await scanResponsiveHttpPorts({
+//   host: '127.0.0.1',
+//   startPort: 1024,
+//   endPort: 9999,
+//   timeoutMs: 400,
+//   concurrency: 100,
+// })
+
 export class App {
 	TAILNET_API_AVAILABLE = false;
 	TAILNET_CONNECTED = false;
@@ -106,6 +116,19 @@ export class App {
 
 	getState() {
 		return this.#_current;
+	}
+
+	scanDevice(name) {
+		let _index = this.#_current.devices.findIndex((d) => d.name === name);
+
+		scanResponsiveHttpPorts(name)
+			.then((ports) => {
+				this.#_current.devices[_index].openPorts = ports;
+			})
+			.catch((error) => {
+				console.error('Error scanning HTTP ports:', error);
+			});
+		return true;
 	}
 
 	setLocalIps(ips) {
